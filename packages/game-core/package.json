@@ -1,6 +1,6 @@
 {
   "name": "@guzhanzhen/game-core",
-  "version": "0.2.0",
+  "version": "1.0.0-r5.m13.easy",
   "private": true,
   "type": "module",
   "exports": {

@@ -2,7 +2,7 @@
 
 以九条战线、三牌阵型和兵法时机为核心的双人策略网页游戏。
 
-项目当前已完成 **R1：无界面的基础规则引擎**。规则核心可以用固定种子完成无战术牌基础局，网页可玩界面将在 R3 接入；提前占旗与战术牌属于 R2。
+项目已优先进入 **R5/M13-A：简单 AI 单人模式**。当前页面支持玄甲玩家对阵朱羽简单 AI；AI 只接收脱敏 `PlayerView`，使用确定性合法动作与轻量阵型成型启发，并自动完成自己的全部回合阶段。
 
 ## 架构原则
 
@@ -11,7 +11,7 @@
 - 随机行为必须可由种子复现。
 - 命令与事件将作为测试、回放、AI 和联机协议的共同基础。
 
-详见 [ARCHITECTURE.md](./ARCHITECTURE.md) 与 [docs/adr](./docs/adr)。
+详见 [ARCHITECTURE.md](./ARCHITECTURE.md)、[17 模块说明](./docs/MODULES.md) 与 [docs/adr](./docs/adr)。
 
 ## 环境
 
@@ -46,6 +46,12 @@ pnpm run check
 pnpm run demo:r1 -- my-seed
 ```
 
+运行 R2 的 5,000 局完整规则出口验证：
+
+```bash
+pnpm run verify:r2
+```
+
 端到端测试使用 `pnpm run test:e2e`，首次运行前需安装 Playwright 浏览器。
 
 ## 目录
@@ -62,8 +68,8 @@ worker/                 Sites / Cloudflare Worker 入口
 
 - R0：工程基线与架构决策（完成）
 - R1：无界面的基础规则引擎（完成）
-- R2：完整规则闭环
-- R3：本地可玩 Web MVP
-- R4：教学、回放与 Alpha
-- R5：单人 AI
+- R2：完整规则闭环（完成）
+- R3：本地可玩 Web MVP（完成）
+- R4：教学、回放与 Alpha（M11–M12 技术实现完成，Alpha 验证待开始）
+- R5：单人 AI（M13-A 简单 AI 完成，标准 AI 待开发）
 - R6：邀请制在线对战

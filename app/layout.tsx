@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "古战阵 · Web 游戏开发",
-  description: "以多战线布阵、推演与兵法时机为核心的双人策略网页游戏。",
+  title: "古战阵 · 九线争锋",
+  description: "在九条战线上排兵布阵，以阵型、时机与兵法夺取胜利。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

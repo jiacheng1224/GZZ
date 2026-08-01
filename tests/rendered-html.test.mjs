@@ -22,16 +22,23 @@ async function render() {
   );
 }
 
-test("server-renders the R1 rules engine status", async () => {
+test("server-renders the M11 match setup without hand identities", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>古战阵 · Web 游戏开发<\/title>/i);
-  assert.match(html, /RULES ENGINE · R1/);
-  assert.match(html, /先把规则做成可信赖的系统/);
-  assert.match(html, /0\.2\.0-r1/);
-  assert.match(html, /NEXT · R2/);
+  assert.match(html, /<title>古战阵 · 九线争锋<\/title>/i);
+  assert.match(html, /R5 · SINGLE PLAYER/);
+  assert.match(html, /1\.3\.0-r5\.m13a/);
+  assert.match(html, /标准对局/);
+  assert.match(html, /基础对局/);
+  assert.match(html, /引导对局/);
+  assert.match(html, /单人对 AI/);
+  assert.match(html, /规则速查/);
+  assert.match(html, /开始本地对战/);
+  assert.match(html, /data-testid="game-setup"/);
+  assert.doesNotMatch(html, /data-testid="hand-card"/);
+  assert.doesNotMatch(html, /troop-(red|orange|yellow|green|blue|purple)-/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
