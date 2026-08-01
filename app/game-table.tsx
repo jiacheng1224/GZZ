@@ -64,7 +64,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.6.0-m16f";
+const APP_VERSION = "2.7.0-m16g";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -786,7 +786,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-F · MAIN COMMAND</p>
+          <p className="eyebrow">M16-G · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -1675,20 +1675,36 @@ function HandoffGate({
       className="handoff-shell"
       data-ready={ready}
       data-testid="handoff-gate"
+      style={
+        {
+          "--viewer-accent": CONTENT.players[state.activePlayer].accent,
+        } as CSSProperties
+      }
     >
       <section className="handoff-card">
-        <p className="eyebrow">LOCAL PRIVATE HANDOFF</p>
+        <p className="eyebrow">M16-G · PRIVATE HANDOFF</p>
         <span
           className={`handoff-emblem ${state.activePlayer}`}
           aria-hidden="true"
         >
-          阵
+          {CONTENT.players[state.activePlayer].sigil}
         </span>
         <p>{restored ? "已恢复本地存档" : `第 ${state.turn} 回合`}</p>
         <h1>请将设备交给{playerName(state.activePlayer)}</h1>
         <p className="handoff-copy">
           当前页面不包含任何玩家手牌。确认周围无人查看后，再进入你的私密桌面。
         </p>
+        <div className="handoff-public-status" aria-label="公开战况">
+          <span>
+            {CONTENT.players["player-one"].sigil} ·{" "}
+            {state.flags.filter((flag) => flag.owner === "player-one").length}
+          </span>
+          <strong>公开战况</strong>
+          <span>
+            {CONTENT.players["player-two"].sigil} ·{" "}
+            {state.flags.filter((flag) => flag.owner === "player-two").length}
+          </span>
+        </div>
         <div className="handoff-actions">
           <button disabled={!ready} onClick={onAccept} type="button">
             确认接管并查看手牌
@@ -1713,13 +1729,21 @@ function AiThinkingScreen({
   difficulty: AiDifficulty;
 }) {
   return (
-    <main className="handoff-shell" data-testid="ai-thinking">
+    <main
+      className="handoff-shell"
+      data-testid="ai-thinking"
+      style={
+        {
+          "--viewer-accent": CONTENT.players["player-two"].accent,
+        } as CSSProperties
+      }
+    >
       <section className="handoff-card ai-thinking-card">
         <p className="eyebrow">
-          R5 · {difficulty === "standard" ? "STANDARD AI" : "EASY AI"}
+          M16-G · {difficulty === "standard" ? "STANDARD AI" : "EASY AI"}
         </p>
         <span className="handoff-emblem player-two" aria-hidden="true">
-          谋
+          {CONTENT.players["player-two"].sigil}
         </span>
         <p>
           {playerName("player-two")} · {AI_VERSION}
@@ -1806,7 +1830,7 @@ function ReplayDrawer({
       >
         <header>
           <div>
-            <p className="eyebrow">M12 · VERIFIED REPLAY</p>
+            <p className="eyebrow">M16-G · VERIFIED WAR CHRONICLE</p>
             <h2>对局回放</h2>
           </div>
           <button aria-label="关闭对局回放" onClick={onClose} type="button">
@@ -1871,8 +1895,13 @@ function ReplayDrawer({
           <div className="replay-flags">
             {publicView.flags.map((flag) => (
               <span className={flag.owner ?? "unclaimed"} key={flag.id}>
-                {flag.id + 1}
-                <small>{flag.owner ? playerName(flag.owner) : "未决"}</small>
+                <i className="beacon-flame" aria-hidden="true" />
+                <b>{String(flag.id + 1).padStart(2, "0")}</b>
+                <small>
+                  {flag.owner
+                    ? `${CONTENT.players[flag.owner].sigil} · ${playerName(flag.owner)}`
+                    : "未决"}
+                </small>
               </span>
             ))}
           </div>
@@ -1948,17 +1977,39 @@ function GameResult({
   const summary = buildGameSummary(state);
   const review = buildGameReview(state);
   return (
-    <main className="result-shell" data-testid="game-result">
+    <main
+      className="result-shell"
+      data-testid="game-result"
+      style={
+        {
+          "--winner-accent": CONTENT.players[summary.winner].accent,
+        } as CSSProperties
+      }
+    >
       <section className="result-card">
-        <p className="eyebrow">对局结算 · {APP_VERSION}</p>
+        <p className="eyebrow">M16-G · 对局结算 · {APP_VERSION}</p>
         <span className={`result-emblem ${summary.winner}`} aria-hidden="true">
-          胜
+          {CONTENT.players[summary.winner].sigil}
         </span>
         <p>第 {summary.turns} 回合结束</p>
         <h1>{playerName(summary.winner)}获胜</h1>
         <strong>
           {summary.condition === "breakthrough" ? "突破三线" : "包围五线"}
         </strong>
+        <div className="result-fronts" aria-label="终局九垒归属">
+          {state.flags.map((flag) => (
+            <span
+              className={`${flag.owner ?? "unclaimed"} ${summary.winningFlags.includes(flag.id) ? "decisive" : ""}`}
+              key={flag.id}
+            >
+              <i className="beacon-flame" aria-hidden="true" />
+              <b>{String(flag.id + 1).padStart(2, "0")}</b>
+              <small>
+                {flag.owner ? CONTENT.players[flag.owner].sigil : "未"}
+              </small>
+            </span>
+          ))}
+        </div>
         <div className="result-stats">
           <div>
             <span>制胜烽垒</span>

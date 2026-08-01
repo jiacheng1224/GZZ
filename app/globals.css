@@ -811,12 +811,14 @@ textarea:focus-visible {
   place-items: center;
   padding: 24px;
   background:
+    linear-gradient(rgba(5, 10, 8, 0.76), rgba(5, 10, 8, 0.94)),
     radial-gradient(
       circle at 50% 20%,
       rgba(197, 161, 90, 0.12),
       transparent 36%
     ),
-    linear-gradient(rgba(13, 17, 14, 0.45), rgba(13, 17, 14, 0.88));
+    var(--main-menu-art) center / cover fixed no-repeat,
+    #0d110e;
 }
 
 .setup-card {
@@ -2182,14 +2184,31 @@ textarea:focus-visible {
   font-size: 0.74rem;
 }
 
+.replay-flags .beacon-flame,
+.result-fronts .beacon-flame {
+  width: 7px;
+  height: 11px;
+  margin: 0 auto 2px;
+  border-radius: 70% 30% 65% 35%;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  transform: rotate(45deg);
+}
+
+.replay-flags b {
+  font-size: 0.68rem;
+}
+
 .replay-flags > span.player-one {
   border-color: var(--pine);
   background: rgba(88, 117, 96, 0.14);
+  color: var(--pine);
 }
 
 .replay-flags > span.player-two {
   border-color: var(--cinnabar);
   background: rgba(201, 91, 67, 0.14);
+  color: var(--cinnabar);
 }
 
 .replay-flags small {
@@ -2262,9 +2281,12 @@ textarea:focus-visible {
   width: min(620px, 100%);
   padding: clamp(32px, 7vw, 72px);
   border: 1px solid rgba(197, 161, 90, 0.34);
-  background: rgba(28, 34, 29, 0.96);
+  background:
+    linear-gradient(155deg, rgba(209, 170, 93, 0.08), transparent 30%),
+    rgba(15, 24, 19, 0.94);
   box-shadow: 0 36px 100px rgba(0, 0, 0, 0.42);
   text-align: center;
+  backdrop-filter: blur(16px);
 }
 
 .result-card {
@@ -2286,10 +2308,20 @@ textarea:focus-visible {
   box-shadow: 0 0 0 10px rgba(88, 117, 96, 0.08);
 }
 
-.handoff-emblem.player-two,
-.result-emblem.player-two {
-  border-color: var(--cinnabar);
-  box-shadow: 0 0 0 10px rgba(201, 91, 67, 0.08);
+.handoff-emblem {
+  border-color: var(--viewer-accent);
+  box-shadow:
+    inset 0 0 0 8px rgba(255, 255, 255, 0.018),
+    0 0 0 10px color-mix(in srgb, var(--viewer-accent) 12%, transparent),
+    0 0 36px color-mix(in srgb, var(--viewer-accent) 22%, transparent);
+}
+
+.result-emblem {
+  border-color: var(--winner-accent);
+  box-shadow:
+    inset 0 0 0 8px rgba(255, 255, 255, 0.018),
+    0 0 0 10px color-mix(in srgb, var(--winner-accent) 12%, transparent),
+    0 0 40px color-mix(in srgb, var(--winner-accent) 28%, transparent);
 }
 
 .handoff-card > p:not(.eyebrow),
@@ -2313,6 +2345,36 @@ textarea:focus-visible {
   margin: 0 auto 24px;
   font-size: 0.86rem;
   line-height: 1.8;
+}
+
+.handoff-public-status {
+  display: grid;
+  max-width: 420px;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.64rem;
+}
+
+.handoff-public-status span:first-child {
+  color: var(--pine);
+  text-align: left;
+}
+
+.handoff-public-status span:last-child {
+  color: var(--cinnabar);
+  text-align: right;
+}
+
+.handoff-public-status strong {
+  color: var(--paper);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
 }
 
 .handoff-actions {
@@ -2395,6 +2457,49 @@ textarea:focus-visible {
   color: var(--gold);
   font-family: "Songti SC", "STSong", serif;
   font-size: 1.25rem;
+}
+
+.result-fronts {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  margin-top: 24px;
+}
+
+.result-fronts > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 9px 2px;
+  border: 1px solid var(--line);
+  color: rgba(168, 176, 165, 0.42);
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.result-fronts > span.player-one {
+  border-color: color-mix(in srgb, var(--pine) 52%, transparent);
+  color: var(--pine);
+  background: color-mix(in srgb, var(--pine) 10%, transparent);
+}
+
+.result-fronts > span.player-two {
+  border-color: color-mix(in srgb, var(--cinnabar) 52%, transparent);
+  color: var(--cinnabar);
+  background: color-mix(in srgb, var(--cinnabar) 10%, transparent);
+}
+
+.result-fronts > span.decisive {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px rgba(209, 170, 93, 0.38);
+}
+
+.result-fronts b {
+  color: var(--paper);
+  font-size: 0.66rem;
+}
+
+.result-fronts small {
+  font-size: 0.54rem;
 }
 
 .result-stats {

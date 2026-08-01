@@ -22,15 +22,15 @@ async function render() {
   );
 }
 
-test("server-renders the M16-F main menu without hand identities", async () => {
+test("server-renders the M16-G main menu without hand identities", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>烽垒九章 · 六旌竞势<\/title>/i);
-  assert.match(html, /M16-F · MAIN COMMAND/);
-  assert.match(html, /2\.6\.0-m16f/);
+  assert.match(html, /M16-G · MAIN COMMAND/);
+  assert.match(html, /2\.7\.0-m16g/);
   assert.match(html, /data-content-pack="beacon-ramparts-zh-cn"/);
   assert.match(html, /标准对局/);
   assert.match(html, /基础对局/);

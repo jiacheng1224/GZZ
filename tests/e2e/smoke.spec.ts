@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.6.0-m16f",
+    appVersion: "2.7.0-m16g",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -531,6 +531,10 @@ for (const [condition, label] of [
     await expect(page.getByText(label, { exact: true })).toBeVisible();
     await expect(page.getByTestId("game-review")).toContainText("复盘摘要");
     await expect(page.getByTestId("game-review")).toContainText("胜负手");
+    await expect(page.locator(".result-fronts > span")).toHaveCount(9);
+    await expect(page.locator(".result-fronts > span.decisive")).toHaveCount(
+      condition === "breakthrough" ? 3 : 5,
+    );
     await expect(
       page.getByRole("table", { name: "双方对局统计" }),
     ).toBeVisible();
