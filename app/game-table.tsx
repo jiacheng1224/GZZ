@@ -64,7 +64,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.5.0-m16e";
+const APP_VERSION = "2.6.0-m16f";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -786,7 +786,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-E · MAIN COMMAND</p>
+          <p className="eyebrow">M16-F · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -1003,7 +1003,7 @@ function onlineCommandLabel(command: GameCommand): string {
       : `移动至烽垒 ${(command.flagId ?? 0) + 1}`;
   if (command.type === "draw-card")
     return `从${CONTENT.piles[command.pile].name}牌堆补牌`;
-  if (command.type === "pass-claims") return "结束宣告";
+  if (command.type === "pass-claims") return "结束争取";
   if (command.type === "skip-play") return "跳过部署";
   if (command.type === "cancel-tactic") return "取消谋策";
   if (command.type === "end-turn") return "结束回合";
@@ -1292,7 +1292,7 @@ function OnlineRoom({
           className="online-card online-entry"
           data-testid="online-entry"
         >
-          <p className="eyebrow">M16-B · ONLINE</p>
+          <p className="eyebrow">M16-F · ONLINE MUSTER</p>
           <h1>在线房间</h1>
           <p>创建六位邀请码，或加入另一位玩家已经创建的房间。</p>
           <button
@@ -1354,11 +1354,19 @@ function OnlineRoom({
     ) ?? [];
 
   return (
-    <main className="online-shell" data-testid="online-room">
+    <main
+      className="online-shell"
+      data-testid="online-room"
+      style={
+        {
+          "--viewer-accent": CONTENT.players[session.playerId].accent,
+        } as CSSProperties
+      }
+    >
       <section className="online-card online-lobby">
         <header>
           <div>
-            <p className="eyebrow">M16-B · LIVE SYNC</p>
+            <p className="eyebrow">M16-F · LIVE BATTLEFIELD</p>
             <h1>房间 {room.inviteCode}</h1>
           </div>
           <span
@@ -1383,16 +1391,24 @@ function OnlineRoom({
               {(["player-one", "player-two"] as const).map((player) => {
                 const playerSeat = room.seats[player];
                 return (
-                  <article key={player}>
-                    <strong>{playerName(player)}</strong>
-                    <span>
-                      {playerSeat
-                        ? playerSeat.connected
-                          ? "在线"
-                          : "断线保留"
-                        : "等待加入"}
+                  <article className={player} key={player}>
+                    <span
+                      className={`player-seal ${player}`}
+                      aria-hidden="true"
+                    >
+                      {CONTENT.players[player].sigil}
                     </span>
-                    <small>{playerSeat?.ready ? "已准备" : "未准备"}</small>
+                    <div>
+                      <strong>{playerName(player)}</strong>
+                      <span>
+                        {playerSeat
+                          ? playerSeat.connected
+                            ? "在线"
+                            : "断线保留"
+                          : "等待加入"}
+                      </span>
+                      <small>{playerSeat?.ready ? "已准备" : "未准备"}</small>
+                    </div>
                   </article>
                 );
               })}
@@ -1404,18 +1420,82 @@ function OnlineRoom({
         ) : view ? (
           <div className="online-match">
             <div className="online-turn">
-              <strong>
-                {view.activePlayer === session.playerId
-                  ? "轮到你行动"
-                  : "等待对手行动"}
-              </strong>
+              <div>
+                <span
+                  className={`player-seal compact ${view.activePlayer}`}
+                  aria-hidden="true"
+                >
+                  {CONTENT.players[view.activePlayer].sigil}
+                </span>
+                <strong>
+                  {view.activePlayer === session.playerId
+                    ? "轮到你行动"
+                    : "等待对手行动"}
+                </strong>
+              </div>
               <span>
                 {PHASE_NAMES[view.phase]} · 第 {view.turn} 回合
               </span>
             </div>
             <div className="online-opponent-hand">
-              {playerName(opponent)}手牌 · {view.players[opponent].handCount} 张
+              <span
+                className={`player-seal compact ${opponent}`}
+                aria-hidden="true"
+              >
+                {CONTENT.players[opponent].sigil}
+              </span>
+              <div aria-hidden="true">
+                {Array.from(
+                  { length: view.players[opponent].handCount },
+                  (_, index) => (
+                    <span className="card-back" key={index} />
+                  ),
+                )}
+              </div>
+              <span>
+                {playerName(opponent)}手牌 · {view.players[opponent].handCount}{" "}
+                张
+              </span>
             </div>
+            <nav
+              className="front-jump-nav online-front-nav"
+              aria-label="在线战场快速定位"
+            >
+              {view.flags.map((flag) => {
+                const legal =
+                  selectedCommands.some(
+                    (command) =>
+                      "flagId" in command && command.flagId === flag.id,
+                  ) ||
+                  view.legalCommands.some(
+                    (command) =>
+                      command.type === "claim-flag" &&
+                      command.flagId === flag.id,
+                  );
+                return (
+                  <button
+                    className={`${flag.owner ? "claimed" : ""} ${legal ? "legal-target" : ""}`}
+                    data-owner={flag.owner ?? "unclaimed"}
+                    key={flag.id}
+                    onClick={() =>
+                      document
+                        .getElementById(`online-flag-${flag.id}`)
+                        ?.scrollIntoView({ block: "nearest", inline: "center" })
+                    }
+                    type="button"
+                  >
+                    <span>{flag.id + 1}</span>
+                    <small>
+                      {flag.owner
+                        ? CONTENT.players[flag.owner].sigil
+                        : legal
+                          ? "可"
+                          : "·"}
+                    </small>
+                  </button>
+                );
+              })}
+            </nav>
             <div className="online-flags">
               {view.flags.map((flag) => {
                 const flagCommand =
@@ -1429,7 +1509,19 @@ function OnlineRoom({
                       command.flagId === flag.id,
                   );
                 return (
-                  <article key={flag.id}>
+                  <article
+                    className={`${flag.owner ? "claimed" : ""} ${flagCommand ? "legal-target" : ""}`}
+                    data-owner={flag.owner ?? "unclaimed"}
+                    id={`online-flag-${flag.id}`}
+                    key={flag.id}
+                    style={
+                      {
+                        "--owner-accent": flag.owner
+                          ? CONTENT.players[flag.owner].accent
+                          : "var(--gold)",
+                      } as CSSProperties
+                    }
+                  >
                     <div className="online-formation opponent">
                       {flag.sides[opponent].cards.map((cardId) => (
                         <CardFace cardId={cardId} compact key={cardId} />
@@ -1442,7 +1534,8 @@ function OnlineRoom({
                       }
                       type="button"
                     >
-                      <span>烽垒 {flag.id + 1}</span>
+                      <span className="beacon-flame" aria-hidden="true" />
+                      <span>烽垒 {String(flag.id + 1).padStart(2, "0")}</span>
                       <strong>
                         {flag.owner
                           ? `${playerName(flag.owner)}占领`
@@ -1450,6 +1543,29 @@ function OnlineRoom({
                             ? onlineCommandLabel(flagCommand)
                             : "未决"}
                       </strong>
+                      <small>
+                        敌 ·{" "}
+                        {formationSummary(
+                          flag.sides[opponent].cards,
+                          flag.capacity,
+                          flag.environment,
+                        )}
+                      </small>
+                      <small>
+                        我 ·{" "}
+                        {formationSummary(
+                          flag.sides[session.playerId].cards,
+                          flag.capacity,
+                          flag.environment,
+                        )}
+                      </small>
+                      {flag.environment.length > 0 && (
+                        <em>
+                          {flag.environment
+                            .map((id) => tacticContentName(id))
+                            .join(" · ")}
+                        </em>
+                      )}
                     </button>
                     <div className="online-formation">
                       {flag.sides[session.playerId].cards.map((cardId) => (
@@ -1459,6 +1575,21 @@ function OnlineRoom({
                   </article>
                 );
               })}
+            </div>
+            <div
+              className={`selected-order online-order ${selectedCard ? "active" : ""}`}
+            >
+              <span>在线军令</span>
+              <strong>
+                {selectedCard ? cardView(selectedCard).title : "等待选择手牌"}
+              </strong>
+              <small>
+                {selectedCard
+                  ? `合法烽垒 ${selectedCommands.length} 处 · 命令由服务端权威确认`
+                  : view.activePlayer === session.playerId
+                    ? "选择手牌后，所有合法烽垒将同步高亮。"
+                    : `等待${playerName(opponent)}提交行动。`}
+              </small>
             </div>
             <div className="online-hand">
               <strong>你的手牌</strong>

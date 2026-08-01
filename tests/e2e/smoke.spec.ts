@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.5.0-m16e",
+    appVersion: "2.6.0-m16f",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -212,6 +212,12 @@ test("creates an online room and restores its ready lobby without exposing the t
   await expect(page.getByTestId("online-entry")).toBeVisible();
   await page.getByRole("button", { name: "创建在线房间" }).click();
   await expect(page.getByTestId("online-room")).toContainText("N2GLJW");
+  await expect(page.getByTestId("online-room")).toContainText(
+    "M16-F · LIVE BATTLEFIELD",
+  );
+  await expect(
+    page.locator(".online-seats .player-seal.player-one"),
+  ).toContainText("玄");
   await page.getByRole("button", { name: "确认准备" }).click();
   await expect(page.getByTestId("online-room")).toContainText("已准备");
   await expect(page.locator("body")).not.toContainText(token);
