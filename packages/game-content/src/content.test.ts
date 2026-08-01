@@ -38,8 +38,13 @@ describe("M16-A original content pack", () => {
       "finished",
     ];
 
-    for (const player of players)
+    for (const player of players) {
       expect(ACTIVE_CONTENT_PACK.players[player].name).not.toHaveLength(0);
+      expect(ACTIVE_CONTENT_PACK.players[player].sigil).toHaveLength(1);
+      expect(ACTIVE_CONTENT_PACK.players[player].accent).toMatch(
+        /^#[0-9a-f]{6}$/i,
+      );
+    }
     for (const formation of formations)
       expect(ACTIVE_CONTENT_PACK.formations[formation].name).not.toHaveLength(
         0,
@@ -75,5 +80,8 @@ describe("M16-A original content pack", () => {
       expect(theme.sigil).toHaveLength(1);
       expect(theme.accent).toMatch(/^#[0-9a-f]{6}$/i);
     }
+    expect(ACTIVE_CONTENT_PACK.theme.cssVariables["--main-menu-art"]).toBe(
+      "url('/main-menu-art.jpg')",
+    );
   });
 });

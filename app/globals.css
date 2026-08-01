@@ -68,9 +68,43 @@ textarea:focus-visible {
 }
 
 .game-shell {
+  position: relative;
+  isolation: isolate;
   width: min(1540px, calc(100% - 32px));
+  min-height: 100svh;
   margin: 0 auto;
   padding: 20px 0 36px;
+}
+
+.game-shell::before {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  background:
+    linear-gradient(rgba(5, 10, 8, 0.76), rgba(5, 10, 8, 0.92)),
+    var(--main-menu-art) center / cover no-repeat;
+  content: "";
+  filter: saturate(0.72) contrast(1.08);
+}
+
+.game-shell::after {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 50% 38%,
+      rgba(209, 170, 93, 0.1),
+      transparent 34%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(5, 12, 9, 0.52),
+      transparent 18% 82%,
+      rgba(5, 12, 9, 0.52)
+    );
+  content: "";
+  pointer-events: none;
 }
 
 .game-header {
@@ -78,8 +112,11 @@ textarea:focus-visible {
   grid-template-columns: 1fr auto minmax(260px, 0.6fr);
   align-items: center;
   gap: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+  border: 1px solid rgba(209, 170, 93, 0.26);
+  background: rgba(10, 17, 14, 0.82);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
 }
 
 .eyebrow,
@@ -175,8 +212,16 @@ textarea:focus-visible {
   gap: 20px;
   margin-top: 12px;
   padding: 10px 14px;
-  border: 1px solid var(--line);
-  background: rgba(32, 39, 33, 0.88);
+  border: 1px solid color-mix(in srgb, var(--viewer-accent) 48%, transparent);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 16%, transparent),
+      transparent 44%
+    ),
+    rgba(14, 22, 18, 0.9);
+  box-shadow: inset 3px 0 0 var(--viewer-accent);
+  backdrop-filter: blur(12px);
 }
 
 .turn-banner > div:first-child {
@@ -206,6 +251,35 @@ textarea:focus-visible {
   box-shadow: 0 0 0 4px rgba(201, 91, 67, 0.16);
 }
 
+.player-seal {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--pine);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1rem;
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 255, 255, 0.025),
+    0 0 18px rgba(79, 120, 102, 0.22);
+}
+
+.player-seal.player-two {
+  color: var(--cinnabar);
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 255, 255, 0.025),
+    0 0 18px rgba(208, 93, 67, 0.22);
+}
+
+.player-seal.compact {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  font-size: 0.68rem;
+}
+
 .deck-counters {
   display: flex;
   flex-wrap: wrap;
@@ -231,8 +305,10 @@ textarea:focus-visible {
 
 .battlefield-panel,
 .command-panel {
-  border: 1px solid var(--line);
-  background: rgba(24, 30, 26, 0.86);
+  border: 1px solid rgba(209, 170, 93, 0.24);
+  background: rgba(12, 20, 16, 0.88);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
 }
 
 .battlefield-panel {
@@ -243,6 +319,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   height: 42px;
   padding: 6px;
   border-bottom: 1px solid var(--line);
@@ -256,12 +333,20 @@ textarea:focus-visible {
 }
 
 .card-back {
+  position: relative;
   width: 21px;
   height: 30px;
   margin-left: -6px;
   border: 1px solid #a58d61;
   border-radius: 2px;
-  background: repeating-linear-gradient(45deg, #473b2d 0 2px, #665238 2px 4px);
+  background:
+    linear-gradient(
+      135deg,
+      transparent 41%,
+      rgba(209, 170, 93, 0.26) 42% 46%,
+      transparent 47%
+    ),
+    linear-gradient(45deg, #23362d 0 44%, #59402f 45% 55%, #23362d 56% 100%);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
@@ -279,9 +364,18 @@ textarea:focus-visible {
   grid-template-columns: repeat(9, minmax(112px, 1fr));
   min-width: 1030px;
   min-height: 480px;
+  background:
+    linear-gradient(rgba(209, 170, 93, 0.035) 1px, transparent 1px) 0 0 / 100%
+      48px,
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(79, 120, 102, 0.13),
+      transparent 58%
+    );
 }
 
 .flag-column {
+  --owner-accent: var(--gold);
   display: grid;
   grid-template-rows: minmax(150px, 1fr) auto minmax(150px, 1fr) 30px;
   min-width: 0;
@@ -289,6 +383,10 @@ textarea:focus-visible {
   transition:
     background 160ms ease,
     box-shadow 160ms ease;
+}
+
+.flag-column:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.012);
 }
 
 .flag-column:last-child {
@@ -301,7 +399,9 @@ textarea:focus-visible {
 }
 
 .flag-column.claimed {
-  background: rgba(0, 0, 0, 0.12);
+  background: color-mix(in srgb, var(--owner-accent) 9%, rgba(0, 0, 0, 0.16));
+  box-shadow: inset 0 0 38px
+    color-mix(in srgb, var(--owner-accent) 9%, transparent);
 }
 
 .formation {
@@ -346,21 +446,44 @@ textarea:focus-visible {
 
 .flag-marker {
   display: grid;
-  min-height: 68px;
+  min-height: 82px;
   place-items: center;
   align-content: center;
   padding: 5px;
-  border-top: 1px solid rgba(197, 161, 90, 0.36);
-  border-bottom: 1px solid rgba(197, 161, 90, 0.36);
+  border-top: 1px solid color-mix(in srgb, var(--owner-accent) 58%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--owner-accent) 58%, transparent);
   background:
-    linear-gradient(135deg, rgba(197, 161, 90, 0.12), transparent), #282a22;
+    radial-gradient(
+      circle at 50% 18%,
+      color-mix(in srgb, var(--owner-accent) 24%, transparent),
+      transparent 36%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--owner-accent) 12%, transparent),
+      transparent
+    ),
+    #1d251f;
   text-align: center;
 }
 
 .flag-marker span {
-  color: var(--gold);
+  color: var(--owner-accent);
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.6rem;
+}
+
+.flag-marker .beacon-flame {
+  width: 8px;
+  height: 13px;
+  margin-bottom: 2px;
+  border-radius: 70% 30% 65% 35%;
+  background: var(--owner-accent);
+  box-shadow:
+    0 0 9px var(--owner-accent),
+    0 0 22px color-mix(in srgb, var(--owner-accent) 65%, transparent);
+  transform: rotate(45deg);
 }
 
 .flag-marker strong {
@@ -497,10 +620,33 @@ textarea:focus-visible {
 }
 
 .command-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 18px;
+  overflow: hidden;
+  border-top-color: rgba(209, 170, 93, 0.54);
+  background:
+    linear-gradient(155deg, rgba(209, 170, 93, 0.1), transparent 35%),
+    rgba(12, 20, 16, 0.92);
+}
+
+.command-seal {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  place-items: center;
+  border: 1px solid rgba(209, 170, 93, 0.32);
+  color: rgba(209, 170, 93, 0.5);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  transform: rotate(-5deg);
 }
 
 .command-panel h2 {
@@ -788,7 +934,7 @@ textarea:focus-visible {
 }
 
 .main-menu-art {
-  background-image: url("/main-menu-art.jpg");
+  background-image: var(--main-menu-art);
   background-position: center bottom;
   background-repeat: no-repeat;
   background-size: auto 165%;

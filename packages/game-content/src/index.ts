@@ -9,7 +9,7 @@ import {
 } from "../../game-core/src";
 import { TROOP_COLORS } from "../../game-core/src/types";
 
-export const GAME_CONTENT_VERSION = "0.2.0-m16b";
+export const GAME_CONTENT_VERSION = "0.3.0-m16d";
 
 export type TacticId = (typeof TACTIC_IDS)[number];
 
@@ -36,7 +36,9 @@ export type ContentPack = Readonly<{
     description: string;
     setting: string;
   }>;
-  players: Readonly<Record<PlayerId, NamedEntry>>;
+  players: Readonly<
+    Record<PlayerId, NamedEntry & Readonly<{ sigil: string; accent: string }>>
+  >;
   troopColors: Readonly<
     Record<
       TroopColor,
@@ -105,10 +107,14 @@ export const BEACON_RAMPARTS_ZH_CN = {
   players: {
     "player-one": {
       name: "玄甲",
+      sigil: "玄",
+      accent: "#6f8f7b",
       description: "驻守北垒的沉着阵使，以稳固兵列控制烽路。",
     },
     "player-two": {
       name: "朱羽",
+      sigil: "朱",
+      accent: "#c7664d",
       description: "巡行南隘的敏锐阵使，以机动调度争夺先机。",
     },
   },
@@ -249,6 +255,7 @@ export const BEACON_RAMPARTS_ZH_CN = {
       "--cinnabar": "#d05d43",
       "--gold": "#d1aa5d",
       "--pine": "#4f7866",
+      "--main-menu-art": "url('/main-menu-art.jpg')",
     },
   },
   research: {

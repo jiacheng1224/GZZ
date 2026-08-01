@@ -63,7 +63,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.3.0-m16c";
+const APP_VERSION = "2.4.0-m16d";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -766,7 +766,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-C · MAIN COMMAND</p>
+          <p className="eyebrow">M16-D · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -2356,12 +2356,21 @@ export function GameTable() {
 
   return (
     <>
-      <main className="game-shell" data-ready={ready}>
+      <main
+        className="game-shell"
+        data-ready={ready}
+        data-viewer={view.viewer}
+        style={
+          {
+            "--viewer-accent": CONTENT.players[view.viewer].accent,
+          } as CSSProperties
+        }
+      >
         <header className="game-header">
           <div className="brand-lockup">
-            <p className="eyebrow">M16-B · WORLD & RESEARCH</p>
+            <p className="eyebrow">M16-D · BATTLEFIELD HUD</p>
             <h1>{CONTENT.brand.name}</h1>
-            <p>{CONTENT.brand.subtitle} · 原创内容工作版</p>
+            <p>{CONTENT.brand.subtitle} · 九垒战场</p>
           </div>
           <div className="game-meta" aria-label="对局状态">
             <span>桌面 {APP_VERSION}</span>
@@ -2421,7 +2430,9 @@ export function GameTable() {
 
         <section className="turn-banner" aria-live="polite">
           <div>
-            <span className={`player-mark ${view.viewer}`} />
+            <span className={`player-seal ${view.viewer}`} aria-hidden="true">
+              {CONTENT.players[view.viewer].sigil}
+            </span>
             <strong>{playerName(view.viewer)}行动</strong>
             <small>{notice}</small>
           </div>
@@ -2445,6 +2456,12 @@ export function GameTable() {
               className="opponent-rack"
               aria-label={`${playerName(opponent)}手牌`}
             >
+              <span
+                className={`player-seal compact ${opponent}`}
+                aria-hidden="true"
+              >
+                {CONTENT.players[opponent].sigil}
+              </span>
               {Array.from(
                 { length: view.players[opponent].handCount },
                 (_, index) => (
@@ -2468,8 +2485,16 @@ export function GameTable() {
                   return (
                     <article
                       className={`flag-column ${flag.owner ? "claimed" : ""} ${command ? "legal-target" : ""}`}
+                      data-owner={flag.owner ?? "unclaimed"}
                       data-testid={`flag-${flag.id}`}
                       key={flag.id}
+                      style={
+                        {
+                          "--owner-accent": flag.owner
+                            ? CONTENT.players[flag.owner].accent
+                            : "var(--gold)",
+                        } as CSSProperties
+                      }
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={(event) => handleDrop(event, flag.id)}
                     >
@@ -2504,7 +2529,8 @@ export function GameTable() {
                       </div>
 
                       <div className="flag-marker">
-                        <span>烽垒 {flag.id + 1}</span>
+                        <span className="beacon-flame" aria-hidden="true" />
+                        <span>烽垒 {String(flag.id + 1).padStart(2, "0")}</span>
                         <strong>
                           {flag.owner
                             ? `${playerName(flag.owner)}占领`
@@ -2558,7 +2584,7 @@ export function GameTable() {
                         type="button"
                       >
                         {command?.type === "claim-flag"
-                          ? "宣告"
+                          ? "夺垒"
                           : command?.type === "choose-tactic-destination"
                             ? "移至此处"
                             : command
@@ -2574,7 +2600,12 @@ export function GameTable() {
             <div className="hand-zone">
               <div className="hand-heading">
                 <div>
-                  <span className={`player-mark ${view.viewer}`} />
+                  <span
+                    className={`player-seal compact ${view.viewer}`}
+                    aria-hidden="true"
+                  >
+                    {CONTENT.players[view.viewer].sigil}
+                  </span>
                   <strong>{playerName(view.viewer)}手牌</strong>
                 </div>
                 <small>{view.hand.length} 张 · 可点击或拖放</small>
@@ -2604,6 +2635,9 @@ export function GameTable() {
           </section>
 
           <aside className="command-panel" aria-label="行动面板">
+            <p className="command-seal" aria-hidden="true">
+              阵令
+            </p>
             {mode === "tutorial" && (
               <TutorialCoach selectedCard={selectedCard} state={state} />
             )}
@@ -2688,7 +2722,7 @@ export function GameTable() {
                   }
                   type="button"
                 >
-                  结束宣告
+                  结束争取
                 </button>
               )}
               {view.legalCommands.some(

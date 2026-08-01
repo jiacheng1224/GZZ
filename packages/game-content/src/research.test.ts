@@ -30,7 +30,7 @@ describe("M16-B content research export", () => {
     );
     expect(review.schemaVersion).toBe(CONTENT_REVIEW_SCHEMA_VERSION);
     expect(review.researchRoundId).toBe("m16-b-01");
-    expect(review.contentPackVersion).toBe("0.2.0-m16b");
+    expect(review.contentPackVersion).toBe("0.3.0-m16d");
     expect(review.response.confusingTerm).toBe("中枢令");
     expect(review.response.notes).toBe("六旌容易记住。");
     expect(serializeContentReview(review)).toMatch(/"clarity": 4/);
