@@ -22,22 +22,24 @@ async function render() {
   );
 }
 
-test("server-renders the M11 match setup without hand identities", async () => {
+test("server-renders the M16-C main menu without hand identities", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>烽垒九章 · 六旌竞势<\/title>/i);
-  assert.match(html, /M16-B · WORLD &amp; RESEARCH/);
-  assert.match(html, /2\.2\.0-m16b/);
+  assert.match(html, /M16-C · MAIN COMMAND/);
+  assert.match(html, /2\.3\.0-m16c/);
   assert.match(html, /data-content-pack="beacon-ramparts-zh-cn"/);
   assert.match(html, /标准对局/);
   assert.match(html, /基础对局/);
   assert.match(html, /引导对局/);
   assert.match(html, /单人对 AI/);
   assert.match(html, /在线房间/);
-  assert.match(html, /规则速查/);
+  assert.match(html, /部署令/);
+  assert.match(html, /选择战局/);
+  assert.match(html, /世界观/);
   assert.match(html, /开始本地对战/);
   assert.match(html, /data-testid="game-setup"/);
   assert.doesNotMatch(html, /data-testid="hand-card"/);

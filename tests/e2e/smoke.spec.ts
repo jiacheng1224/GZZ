@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.2.0-m16b",
+    appVersion: "2.3.0-m16c",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -138,7 +138,7 @@ test("opens the rules reference with all five formation examples", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "规则速查" }).click();
+  await page.getByRole("button", { name: "规则", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "规则速查" });
   await expect(drawer).toBeVisible();
   await expect(drawer.locator(".formation-reference li")).toHaveCount(5);
@@ -221,7 +221,7 @@ test("persists sound and reduced-motion experience preferences", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "体验设置" }).click();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "体验设置" });
   const sound = drawer.getByRole("checkbox", { name: /音效反馈/ });
   const reducedMotion = drawer.getByRole("checkbox", {
@@ -235,7 +235,7 @@ test("persists sound and reduced-motion experience preferences", async ({
   );
   await page.getByRole("button", { name: "关闭体验设置" }).click();
   await page.reload();
-  await page.getByRole("button", { name: "体验设置" }).click();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "体验设置" }).getByRole("checkbox", {
       name: /音效反馈/,

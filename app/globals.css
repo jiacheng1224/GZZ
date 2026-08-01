@@ -772,6 +772,311 @@ textarea:focus-visible {
   font-size: 0.6rem;
 }
 
+.main-menu-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #080d0b;
+}
+
+.main-menu-art,
+.main-menu-shade {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+}
+
+.main-menu-art {
+  background-image: url("/main-menu-art.jpg");
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: auto 165%;
+  filter: saturate(0.88) contrast(1.04) brightness(0.78);
+  transform: scale(1.01);
+}
+
+.main-menu-shade {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(4, 8, 6, 0.88) 0%, transparent 47%),
+    linear-gradient(270deg, rgba(4, 8, 6, 0.94) 0%, rgba(4, 8, 6, 0.22) 55%),
+    linear-gradient(0deg, rgba(4, 8, 6, 0.9) 0%, transparent 42%);
+}
+
+.main-menu-header {
+  display: flex;
+  width: min(1500px, calc(100% - 64px));
+  min-height: 82px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 auto;
+  border-bottom: 1px solid rgba(209, 170, 93, 0.28);
+}
+
+.main-menu-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.main-menu-wordmark > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(209, 170, 93, 0.58);
+  color: var(--gold);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1.35rem;
+}
+
+.main-menu-wordmark > div {
+  display: grid;
+}
+
+.main-menu-wordmark strong {
+  color: var(--paper);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.12em;
+}
+
+.main-menu-wordmark small {
+  color: var(--muted);
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+}
+
+.main-menu-header nav {
+  display: flex;
+  gap: 7px;
+}
+
+.main-menu-header nav button {
+  min-width: 68px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.main-menu-header nav button:hover {
+  border-color: rgba(209, 170, 93, 0.4);
+  color: var(--paper);
+}
+
+.main-menu-layout {
+  display: grid;
+  width: min(1500px, calc(100% - 64px));
+  min-height: calc(100svh - 82px);
+  grid-template-columns: minmax(320px, 1fr) minmax(390px, 520px);
+  align-items: center;
+  gap: clamp(32px, 6vw, 100px);
+  margin: 0 auto;
+  padding: 36px 0 42px;
+}
+
+.main-menu-hero {
+  align-self: end;
+  max-width: 580px;
+  padding-bottom: clamp(30px, 8vh, 90px);
+  text-shadow: 0 3px 28px rgba(0, 0, 0, 0.9);
+}
+
+.main-menu-hero h1 {
+  margin: 0;
+  color: #e8d4a6;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: clamp(4.5rem, 9vw, 8.6rem);
+  font-weight: 560;
+  letter-spacing: -0.09em;
+  line-height: 0.85;
+}
+
+.main-menu-subtitle {
+  margin: 18px 0 0;
+  color: var(--gold);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: clamp(1.05rem, 2vw, 1.5rem);
+  letter-spacing: 0.42em;
+}
+
+.main-menu-description {
+  max-width: 480px;
+  margin: 22px 0 0;
+  color: rgba(234, 223, 202, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.85;
+}
+
+.main-menu-metrics {
+  display: flex;
+  gap: 1px;
+  margin-top: 26px;
+}
+
+.main-menu-metrics span {
+  min-width: 104px;
+  padding: 10px 14px;
+  border: 1px solid rgba(234, 223, 202, 0.14);
+  background: rgba(8, 13, 11, 0.38);
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.main-menu-metrics b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--paper);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1rem;
+}
+
+.main-menu-panel.match-setup-form {
+  position: relative;
+  max-height: calc(100svh - 124px);
+  align-content: start;
+  gap: 18px;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid rgba(209, 170, 93, 0.42);
+  overflow-y: auto;
+  background: rgba(14, 21, 18, 0.92);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(14px);
+}
+
+.main-menu-panel::before,
+.main-menu-panel::after {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: var(--gold);
+  content: "";
+  pointer-events: none;
+}
+
+.main-menu-panel::before {
+  top: 8px;
+  left: 8px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.main-menu-panel::after {
+  right: 8px;
+  bottom: 8px;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+}
+
+.main-menu-panel > header,
+.main-menu-panel > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.main-menu-panel > header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.main-menu-panel > header h2 {
+  margin: 0;
+  color: var(--paper);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1.75rem;
+  font-weight: 560;
+}
+
+.main-menu-panel > header > span,
+.main-menu-panel > footer {
+  color: rgba(168, 180, 172, 0.64);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem;
+}
+
+.main-menu-panel .mode-selector {
+  grid-template-columns: 1fr 1fr;
+}
+
+.main-menu-panel .mode-selector legend {
+  grid-column: 1 / -1;
+}
+
+.main-menu-panel .mode-selector > label {
+  min-height: 58px;
+}
+
+.main-menu-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.main-menu-options fieldset,
+.main-menu-options .seed-field {
+  min-width: 0;
+}
+
+.main-menu-options .first-player-options {
+  grid-template-columns: 1fr;
+}
+
+.main-menu-options .first-player-options label {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.main-menu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.main-menu-actions button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.main-menu-actions .primary-menu-action {
+  grid-column: 1 / -1;
+  min-height: 52px;
+  border-color: var(--gold);
+  background: linear-gradient(135deg, #b88a45, #d1aa5d);
+  color: #172019;
+  font-weight: 780;
+  letter-spacing: 0.12em;
+}
+
+.main-menu-actions .resume-menu-action {
+  border-color: rgba(209, 170, 93, 0.58);
+  color: var(--gold);
+}
+
+.main-menu-actions button:disabled,
+.main-menu-header button:disabled {
+  cursor: wait;
+  opacity: 0.46;
+}
+
+.main-menu-panel > footer {
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 .online-shell {
   min-height: 100vh;
   padding: clamp(16px, 3vw, 36px);
@@ -1898,6 +2203,82 @@ textarea:focus-visible {
 }
 
 @media (max-width: 680px) {
+  .main-menu-shell {
+    min-height: 100svh;
+    overflow-y: auto;
+  }
+
+  .main-menu-art {
+    position: fixed;
+    background-position: 50% bottom;
+    background-size: auto 155%;
+  }
+
+  .main-menu-shade {
+    position: fixed;
+    background:
+      linear-gradient(180deg, rgba(4, 8, 6, 0.48), rgba(4, 8, 6, 0.9) 44%),
+      rgba(4, 8, 6, 0.24);
+  }
+
+  .main-menu-header {
+    width: calc(100% - 24px);
+    min-height: 70px;
+    gap: 10px;
+  }
+
+  .main-menu-wordmark small {
+    display: none;
+  }
+
+  .main-menu-header nav {
+    gap: 0;
+  }
+
+  .main-menu-header nav button {
+    min-width: auto;
+    padding: 0 8px;
+  }
+
+  .main-menu-layout {
+    width: calc(100% - 24px);
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 48px 0 24px;
+  }
+
+  .main-menu-hero {
+    align-self: auto;
+    padding-bottom: 0;
+  }
+
+  .main-menu-hero h1 {
+    font-size: clamp(4rem, 22vw, 6.2rem);
+  }
+
+  .main-menu-description {
+    max-width: 360px;
+  }
+
+  .main-menu-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .main-menu-metrics span {
+    min-width: 0;
+  }
+
+  .main-menu-panel.match-setup-form {
+    max-height: none;
+    padding: 24px 18px;
+  }
+
+  .main-menu-options {
+    grid-template-columns: 1fr;
+  }
+
   .game-shell {
     width: min(100% - 16px, 680px);
     padding-top: 10px;

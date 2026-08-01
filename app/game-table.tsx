@@ -63,7 +63,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.2.0-m16b";
+const APP_VERSION = "2.3.0-m16c";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -735,25 +735,70 @@ function SetupScreen({
   onOpenContent: () => void;
 }) {
   return (
-    <main className="setup-shell" data-ready={ready} data-testid="game-setup">
-      <section className="setup-card">
-        <div className="setup-intro">
-          <p className="eyebrow">M16-B · WORLD & RESEARCH</p>
-          <span className="setup-emblem" aria-hidden="true">
-            {CONTENT.brand.emblem}
-          </span>
+    <main
+      className="main-menu-shell"
+      data-ready={ready}
+      data-testid="game-setup"
+    >
+      <div className="main-menu-art" aria-hidden="true" />
+      <div className="main-menu-shade" aria-hidden="true" />
+
+      <header className="main-menu-header">
+        <div className="main-menu-wordmark">
+          <span aria-hidden="true">{CONTENT.brand.emblem}</span>
+          <div>
+            <strong>{CONTENT.brand.name}</strong>
+            <small>{CONTENT.brand.subtitle}</small>
+          </div>
+        </div>
+        <nav aria-label="主菜单辅助入口">
+          <button disabled={!ready} onClick={onOpenRules} type="button">
+            规则
+          </button>
+          <button disabled={!ready} onClick={onOpenContent} type="button">
+            世界观
+          </button>
+          <button disabled={!ready} onClick={onOpenSettings} type="button">
+            设置
+          </button>
+        </nav>
+      </header>
+
+      <section className="main-menu-layout">
+        <div className="main-menu-hero">
+          <p className="eyebrow">M16-C · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
-          <p>{CONTENT.brand.description}</p>
+          <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
+          <p className="main-menu-description">{CONTENT.brand.description}</p>
+          <div className="main-menu-metrics" aria-label="游戏概览">
+            <span>
+              <b>09</b> 烽垒
+            </span>
+            <span>
+              <b>06</b> 旌团
+            </span>
+            <span>
+              <b>20</b> 分钟
+            </span>
+          </div>
         </div>
 
         <form
-          className="match-setup-form"
+          className="main-menu-panel match-setup-form"
           onSubmit={(event) => {
             event.preventDefault();
             onStart();
           }}
         >
-          <fieldset>
+          <header>
+            <div>
+              <p className="section-label">部署令</p>
+              <h2>选择战局</h2>
+            </div>
+            <span>{APP_VERSION}</span>
+          </header>
+
+          <fieldset className="mode-selector">
             <legend>对局模式</legend>
             <label className={mode === "standard" ? "selected" : ""}>
               <input
@@ -764,7 +809,7 @@ function SetupScreen({
               />
               <span>
                 <strong>标准对局</strong>
-                <small>60 张阵兵牌 + 10 张谋策牌，完整规则</small>
+                <small>完整阵兵与谋策</small>
               </span>
             </label>
             <label className={mode === "basic" ? "selected" : ""}>
@@ -776,7 +821,7 @@ function SetupScreen({
               />
               <span>
                 <strong>基础对局</strong>
-                <small>仅使用阵兵牌，适合首次熟悉兵列与夺垒</small>
+                <small>只使用阵兵</small>
               </span>
             </label>
             <label className={mode === "tutorial" ? "selected" : ""}>
@@ -788,7 +833,7 @@ function SetupScreen({
               />
               <span>
                 <strong>引导对局</strong>
-                <small>固定无谋策局面，用三步夺得第一座烽垒</small>
+                <small>三步夺取首垒</small>
               </span>
             </label>
             <label className={mode === "solo" ? "selected" : ""}>
@@ -800,10 +845,7 @@ function SetupScreen({
               />
               <span>
                 <strong>单人对 AI</strong>
-                <small>
-                  你执{playerName("player-one")}，可选择简单或标准
-                  {playerName("player-two")} AI
-                </small>
+                <small>执{playerName("player-one")}迎战 AI</small>
               </span>
             </label>
           </fieldset>
@@ -835,71 +877,75 @@ function SetupScreen({
             </fieldset>
           )}
 
-          <fieldset disabled={mode === "solo"}>
-            <legend>先手阵营</legend>
-            <div className="first-player-options">
-              {(["player-one", "player-two"] as const).map((player) => (
-                <label
-                  className={firstPlayer === player ? "selected" : ""}
-                  key={player}
-                >
-                  <input
-                    checked={firstPlayer === player}
-                    name="first-player"
-                    onChange={() => onFirstPlayerChange(player)}
-                    type="radio"
-                  />
-                  {playerName(player)}先手
-                </label>
-              ))}
-            </div>
-            {mode === "solo" && (
-              <small>单人模式固定由{playerName("player-one")}玩家先手。</small>
-            )}
-          </fieldset>
+          <div className="main-menu-options">
+            <fieldset disabled={mode === "solo"}>
+              <legend>先手阵营</legend>
+              <div className="first-player-options">
+                {(["player-one", "player-two"] as const).map((player) => (
+                  <label
+                    className={firstPlayer === player ? "selected" : ""}
+                    key={player}
+                  >
+                    <input
+                      checked={firstPlayer === player}
+                      name="first-player"
+                      onChange={() => onFirstPlayerChange(player)}
+                      type="radio"
+                    />
+                    {playerName(player)}先手
+                  </label>
+                ))}
+              </div>
+              {mode === "solo" && (
+                <small>
+                  单人模式固定由{playerName("player-one")}玩家先手。
+                </small>
+              )}
+            </fieldset>
 
-          <label className="seed-field" htmlFor="game-seed">
-            <span>局面种子</span>
-            <input
-              id="game-seed"
-              onChange={(event) => onSeedChange(event.target.value)}
-              value={seed}
-            />
-            <small>相同模式、先手与种子会得到相同的初始牌序。</small>
-          </label>
+            <label className="seed-field" htmlFor="game-seed">
+              <span>局面种子</span>
+              <input
+                id="game-seed"
+                onChange={(event) => onSeedChange(event.target.value)}
+                value={seed}
+              />
+              <small>相同配置会复现同一牌序。</small>
+            </label>
+          </div>
 
-          <div className="setup-actions">
-            <button disabled={!ready} type="submit">
+          <div className="main-menu-actions">
+            <button
+              className="primary-menu-action"
+              disabled={!ready}
+              type="submit"
+            >
               {mode === "tutorial"
                 ? "开始三步引导"
                 : mode === "solo"
                   ? "开始单人对战"
                   : "开始本地对战"}
             </button>
-            <button disabled={!ready} onClick={onOpenRules} type="button">
-              规则速查
-            </button>
-            <button disabled={!ready} onClick={onOpenSettings} type="button">
-              体验设置
-            </button>
-            <button disabled={!ready} onClick={onOpenContent} type="button">
-              原创内容档案
-            </button>
-            <button disabled={!ready} onClick={onOpenOnline} type="button">
-              在线房间
-            </button>
             {canResume && (
-              <button disabled={!ready} onClick={onResume} type="button">
-                返回当前对局
+              <button
+                className="resume-menu-action"
+                disabled={!ready}
+                onClick={onResume}
+                type="button"
+              >
+                继续当前对局
               </button>
             )}
+            <button disabled={!ready} onClick={onOpenOnline} type="button">
+              进入在线房间
+            </button>
           </div>
-        </form>
 
-        <footer>
-          <span>本地对战 · 自动存档</span>
-          <span>{APP_VERSION}</span>
-        </footer>
+          <footer>
+            <span>自动存档 · 确定性牌序</span>
+            <span>内容 {GAME_CONTENT_VERSION}</span>
+          </footer>
+        </form>
       </section>
     </main>
   );
