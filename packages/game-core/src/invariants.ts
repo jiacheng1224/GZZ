@@ -1,4 +1,5 @@
 import { isTroopCard } from "./cards";
+import { isEnvironment, isMorale } from "./tactics";
 import { PLAYER_IDS, type CardId, type GameState } from "./types";
 
 export class InvariantError extends Error {
@@ -22,10 +23,13 @@ function collectCardLocations(state: GameState): Array<[CardId, string]> {
   for (const playerId of PLAYER_IDS)
     add(state.players[playerId].hand, `${playerId}.hand`);
   for (const flag of state.flags) {
+    add(flag.environment, `flag-${flag.id}.environment`);
     for (const playerId of PLAYER_IDS) {
       add(flag.sides[playerId].cards, `flag-${flag.id}.${playerId}`);
     }
   }
+  if (state.pendingEffect)
+    add([state.pendingEffect.tacticId], "pending-effect");
   return locations;
 }
 
@@ -59,11 +63,23 @@ export function assertGameState(state: GameState): void {
           `Flag ${flag.id} exceeds capacity for ${playerId}.`,
         );
       }
-      if (flag.sides[playerId].cards.some((card) => !isTroopCard(card))) {
+      if (
+        flag.sides[playerId].cards.some(
+          (card) => !isTroopCard(card) && !isMorale(card),
+        )
+      ) {
         throw new InvariantError(
-          `Flag ${flag.id} contains a non-troop card in the basic rules.`,
+          `Flag ${flag.id} contains a card that cannot join a formation.`,
         );
       }
+    }
+    if (flag.environment.some((card) => !isEnvironment(card))) {
+      throw new InvariantError(
+        `Flag ${flag.id} contains an invalid environment card.`,
+      );
+    }
+    if (flag.capacity === 4 && !flag.environment.includes("tactic-mud")) {
+      throw new InvariantError(`Flag ${flag.id} has capacity 4 without Mud.`);
     }
   }
 
@@ -96,8 +112,8 @@ export function assertGameState(state: GameState): void {
     throw new InvariantError("A finished game must have a winner.");
   if (state.phase !== "finished" && state.winner)
     throw new InvariantError("A running game cannot already have a winner.");
-  if (state.pendingEffect)
-    throw new InvariantError(
-      "Basic-rule R1 state cannot contain a pending tactic effect.",
-    );
+  if (state.phase === "resolve-tactic" && !state.pendingEffect)
+    throw new InvariantError("resolve-tactic requires a pending effect.");
+  if (state.phase !== "resolve-tactic" && state.pendingEffect)
+    throw new InvariantError("A pending effect requires resolve-tactic phase.");
 }

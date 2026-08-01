@@ -1,6 +1,6 @@
 {
   "name": "guzhanzhen-web",
-  "version": "0.1.0",
+  "version": "2.10.0-m16j",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "engines": {
@@ -16,6 +16,7 @@
     "test:render": "pnpm run build && node --test tests/rendered-html.test.mjs",
     "test:e2e": "playwright test",
     "demo:r1": "tsx scripts/simulate-basic-game.ts",
+    "verify:r2": "tsx scripts/simulate-standard-games.ts 5000",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build",

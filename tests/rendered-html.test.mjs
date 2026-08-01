@@ -22,16 +22,27 @@ async function render() {
   );
 }
 
-test("server-renders the R1 rules engine status", async () => {
+test("server-renders the M16-J main menu without hand identities", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>古战阵 · Web 游戏开发<\/title>/i);
-  assert.match(html, /RULES ENGINE · R1/);
-  assert.match(html, /先把规则做成可信赖的系统/);
-  assert.match(html, /0\.2\.0-r1/);
-  assert.match(html, /NEXT · R2/);
+  assert.match(html, /<title>烽垒九章 · 六旌竞势<\/title>/i);
+  assert.match(html, /M16-J · MAIN COMMAND/);
+  assert.match(html, /2\.10\.0-m16j/);
+  assert.match(html, /data-content-pack="beacon-ramparts-zh-cn"/);
+  assert.match(html, /标准对局/);
+  assert.match(html, /基础对局/);
+  assert.match(html, /引导对局/);
+  assert.match(html, /单人对 AI/);
+  assert.match(html, /在线房间/);
+  assert.match(html, /部署令/);
+  assert.match(html, /选择战局/);
+  assert.match(html, /世界观/);
+  assert.match(html, /开始本地对战/);
+  assert.match(html, /data-testid="game-setup"/);
+  assert.doesNotMatch(html, /data-testid="hand-card"/);
+  assert.doesNotMatch(html, /troop-(red|orange|yellow|green|blue|purple)-/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

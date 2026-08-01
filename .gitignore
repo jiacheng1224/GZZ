@@ -43,3 +43,6 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# Local duplicate kept outside project history and deployment bundles.
+/packages/game-core/src/formations 2.ts

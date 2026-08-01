@@ -76,7 +76,7 @@ describe("basic flag claim", () => {
     expect(next.phase).toBe("optional-claims");
   });
 
-  it("defers early claims to R2 with a stable error", () => {
+  it("rejects an unproven early claim with a stable error", () => {
     const state = createEmptyGameState("early");
     state.phase = "optional-claims";
     state.flags[0].sides["player-one"] = {
@@ -88,6 +88,7 @@ describe("basic flag claim", () => {
       player: "player-one",
       flagId: 0,
     });
-    expect(error?.code).toBe("OPPONENT_FORMATION_INCOMPLETE");
+    expect(error?.code).toBe("CLAIM_NOT_PROVEN");
+    expect(error?.details?.witness).toBeDefined();
   });
 });

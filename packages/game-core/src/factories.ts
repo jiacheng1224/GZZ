@@ -1,5 +1,6 @@
 import { createTroopDeck } from "./cards";
 import { createSeededRandom, shuffle } from "./random";
+import { createTacticDeck } from "./tactics";
 import type { FlagState, GameEvent, GameState, PlayerId } from "./types";
 
 type NewGameEvent = GameEvent extends infer Event
@@ -17,6 +18,7 @@ const createFlag = (id: number): FlagState => ({
     "player-one": emptySide(),
     "player-two": emptySide(),
   },
+  environment: [],
 });
 
 export function createEmptyGameState(
@@ -29,8 +31,8 @@ export function createEmptyGameState(
     phase: "setup",
     activePlayer,
     players: {
-      "player-one": { hand: [], playedTacticsCount: 0 },
-      "player-two": { hand: [], playedTacticsCount: 0 },
+      "player-one": { hand: [], playedTacticsCount: 0, hasPlayedLeader: false },
+      "player-two": { hand: [], playedTacticsCount: 0, hasPlayedLeader: false },
     },
     flags: Array.from({ length: 9 }, (_, id) => createFlag(id)),
     troopDeck: [],
@@ -63,6 +65,73 @@ export function createBasicGame(
     state.players["player-two"].hand.push(state.troopDeck.pop()!);
   }
 
+  state.phase = "play-card";
+  state.turn = 1;
+  addInitialEvent(state, { type: "game-started", seed, firstPlayer });
+  addInitialEvent(state, {
+    type: "turn-started",
+    player: firstPlayer,
+    turn: 1,
+  });
+  return state;
+}
+
+export function createStandardGame(
+  seed = "development-seed",
+  firstPlayer: PlayerId = "player-one",
+): GameState {
+  const state = createBasicGame(seed, firstPlayer);
+  state.tacticDeck = shuffle(
+    createTacticDeck(),
+    createSeededRandom(`${seed}:tactics`),
+  );
+  state.cardUniverse.push(...state.tacticDeck);
+  return state;
+}
+
+export function createGuidedGame(
+  seed = "guided-first-flag",
+  firstPlayer: PlayerId = "player-one",
+): GameState {
+  const state = createEmptyGameState(seed, firstPlayer);
+  const opponent: PlayerId =
+    firstPlayer === "player-one" ? "player-two" : "player-one";
+  const actorFormation = ["troop-red-8", "troop-red-9"];
+  const opponentFormation = ["troop-blue-1", "troop-blue-3"];
+  const actorHand = [
+    "troop-red-10",
+    "troop-orange-1",
+    "troop-orange-2",
+    "troop-orange-3",
+    "troop-orange-4",
+    "troop-orange-5",
+    "troop-orange-6",
+  ];
+  const opponentHand = [
+    "troop-green-1",
+    "troop-green-2",
+    "troop-green-3",
+    "troop-green-4",
+    "troop-green-5",
+    "troop-green-6",
+    "troop-green-7",
+  ];
+  const reserved = new Set([
+    ...actorFormation,
+    ...opponentFormation,
+    ...actorHand,
+    ...opponentHand,
+  ]);
+
+  state.cardUniverse = createTroopDeck();
+  state.troopDeck = shuffle(
+    state.cardUniverse.filter((cardId) => !reserved.has(cardId)),
+    createSeededRandom(`${seed}:guided-rest`),
+  );
+  state.players[firstPlayer].hand = actorHand;
+  state.players[opponent].hand = opponentHand;
+  state.flags[0].sides[firstPlayer].cards = actorFormation;
+  state.flags[0].sides[opponent].cards = opponentFormation;
   state.phase = "play-card";
   state.turn = 1;
   addInitialEvent(state, { type: "game-started", seed, firstPlayer });

@@ -1,6 +1,6 @@
 {
   "name": "@guzhanzhen/game-core",
-  "version": "0.2.0",
+  "version": "1.5.0-r6.m15.sync",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ACTIVE_CONTENT_PACK } from "@/packages/game-content/src";
 import "./globals.css";
+
+const CONTENT = ACTIVE_CONTENT_PACK;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "古战阵 · Web 游戏开发",
-  description: "以多战线布阵、推演与兵法时机为核心的双人策略网页游戏。",
+  title: CONTENT.brand.fullTitle,
+  description: CONTENT.brand.description,
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -30,6 +34,8 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        data-content-pack={CONTENT.id}
+        style={CONTENT.theme.cssVariables as CSSProperties}
       >
         {children}
       </body>
