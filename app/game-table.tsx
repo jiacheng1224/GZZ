@@ -24,6 +24,7 @@ import {
   createGuidedGame,
   createReplayArchive,
   createStandardGame,
+  evaluateFormation,
   exportReplay,
   getTacticCard,
   importReplay,
@@ -63,7 +64,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.4.0-m16d";
+const APP_VERSION = "2.5.0-m16e";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -143,6 +144,7 @@ function cardView(cardId: CardId) {
       subtitle: CONTENT.tacticCategories[tactic.category],
       className: `tactic ${tactic.category}`,
       accent: CONTENT.tacticCategoryThemes[tactic.category].accent,
+      sigil: CONTENT.tacticCategoryThemes[tactic.category].sigil,
     };
   }
   const troop = parseTroopCard(cardId);
@@ -151,7 +153,20 @@ function cardView(cardId: CardId) {
     subtitle: `${troopColorName(troop.color)}色${CONTENT.terms.troop}`,
     className: `troop ${troop.color}`,
     accent: CONTENT.troopColors[troop.color].accent,
+    sigil: CONTENT.troopColors[troop.color].sigil,
   };
+}
+
+function formationSummary(
+  cards: readonly CardId[],
+  capacity: 3 | 4,
+  environment: readonly CardId[],
+): string {
+  if (cards.length < capacity) return `${cards.length}/${capacity} 成阵中`;
+  const formation = evaluateFormation(cards, {
+    fog: environment.includes("tactic-fog"),
+  });
+  return `${CONTENT.formations[formation.kind].name} · ${formation.total}`;
 }
 
 function eventText(event: ProjectedGameEvent): string {
@@ -190,8 +205,13 @@ function CardFace({
       className={`card-face ${card.className} ${compact ? "compact" : ""}`}
       style={{ "--card-accent": card.accent } as CSSProperties}
     >
-      <strong>{card.title}</strong>
-      <small>{card.subtitle}</small>
+      <span className="card-sigil" aria-hidden="true">
+        {card.sigil}
+      </span>
+      <span className="card-copy">
+        <strong>{card.title}</strong>
+        <small>{card.subtitle}</small>
+      </span>
     </span>
   );
 }
@@ -766,7 +786,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-D · MAIN COMMAND</p>
+          <p className="eyebrow">M16-E · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -2368,7 +2388,7 @@ export function GameTable() {
       >
         <header className="game-header">
           <div className="brand-lockup">
-            <p className="eyebrow">M16-D · BATTLEFIELD HUD</p>
+            <p className="eyebrow">M16-E · TACTICAL CLARITY</p>
             <h1>{CONTENT.brand.name}</h1>
             <p>{CONTENT.brand.subtitle} · 九垒战场</p>
           </div>
@@ -2473,6 +2493,34 @@ export function GameTable() {
               </span>
             </div>
 
+            <nav className="front-jump-nav" aria-label="快速定位烽垒">
+              {view.flags.map((flag) => {
+                const command = flagCommand(flag.id);
+                return (
+                  <button
+                    className={`${flag.owner ? "claimed" : ""} ${command ? "legal-target" : ""}`}
+                    data-owner={flag.owner ?? "unclaimed"}
+                    key={flag.id}
+                    onClick={() =>
+                      document
+                        .getElementById(`battlefield-flag-${flag.id}`)
+                        ?.scrollIntoView({ block: "nearest", inline: "center" })
+                    }
+                    type="button"
+                  >
+                    <span>{flag.id + 1}</span>
+                    <small>
+                      {flag.owner
+                        ? CONTENT.players[flag.owner].sigil
+                        : command
+                          ? "可"
+                          : "·"}
+                    </small>
+                  </button>
+                );
+              })}
+            </nav>
+
             <div className="battlefield-scroll">
               <div className="battlefield-grid">
                 {view.flags.map((flag) => {
@@ -2487,6 +2535,7 @@ export function GameTable() {
                       className={`flag-column ${flag.owner ? "claimed" : ""} ${command ? "legal-target" : ""}`}
                       data-owner={flag.owner ?? "unclaimed"}
                       data-testid={`flag-${flag.id}`}
+                      id={`battlefield-flag-${flag.id}`}
                       key={flag.id}
                       style={
                         {
@@ -2536,6 +2585,24 @@ export function GameTable() {
                             ? `${playerName(flag.owner)}占领`
                             : "未决"}
                         </strong>
+                        <div className="formation-readout">
+                          <span>
+                            敌 ·{" "}
+                            {formationSummary(
+                              flag.sides[opponent].cards,
+                              flag.capacity,
+                              flag.environment,
+                            )}
+                          </span>
+                          <span>
+                            我 ·{" "}
+                            {formationSummary(
+                              flag.sides[view.viewer].cards,
+                              flag.capacity,
+                              flag.environment,
+                            )}
+                          </span>
+                        </div>
                         {flag.environment.length > 0 && (
                           <small>
                             {flag.environment
@@ -2641,6 +2708,17 @@ export function GameTable() {
             {mode === "tutorial" && (
               <TutorialCoach selectedCard={selectedCard} state={state} />
             )}
+            <div className={`selected-order ${selectedCard ? "active" : ""}`}>
+              <span>已选军令</span>
+              <strong>
+                {selectedCard ? cardView(selectedCard).title : "等待选择手牌"}
+              </strong>
+              <small>
+                {selectedCard
+                  ? `合法烽垒 ${view.flags.filter((flag) => flagCommand(flag.id)).length} 处`
+                  : "选中一张手牌后，战场将标出所有合法位置。"}
+              </small>
+            </div>
             <div>
               <p className="section-label">当前阶段</p>
               <h2>{PHASE_NAMES[view.phase]}</h2>

@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.4.0-m16d",
+    appVersion: "2.5.0-m16e",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
