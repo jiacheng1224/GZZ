@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type DragEvent,
@@ -13,8 +15,10 @@ import {
   RuleError,
   applyCommand,
   assertGameState,
+  buildGameReview,
   buildGameSummary,
   chooseAiCommand,
+  createCommandEnvelope,
   createBasicGame,
   createGuidedGame,
   createReplayArchive,
@@ -28,11 +32,16 @@ import {
   replayTo,
   stateFingerprint,
   type CardId,
+  type AiDifficulty,
   type GameCommand,
   type GamePhase,
   type GameState,
   type PlayerId,
+  type PlayerView,
   type ProjectedGameEvent,
+  type ProtocolCommandResult,
+  type ProtocolSnapshot,
+  type PublicRoomView,
   type ReplayArchive,
 } from "@/packages/game-core/src";
 
@@ -67,8 +76,10 @@ const PHASE_NAMES: Record<GamePhase, string> = {
   finished: "对局结束",
 };
 
-const APP_VERSION = "1.3.0-r5.m13a";
+const APP_VERSION = "2.0.0-r6.rc1";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
+const PREFERENCES_KEY = "guzhanzhen.experience.v1";
+const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
 
 type MatchMode = "standard" | "basic" | "tutorial" | "solo";
 
@@ -96,6 +107,46 @@ const playerName = (player: PlayerId) =>
 
 const otherPlayer = (player: PlayerId): PlayerId =>
   player === "player-one" ? "player-two" : "player-one";
+
+type SoundCue = "deploy" | "tactic" | "claim" | "turn" | "victory" | "confirm";
+
+let feedbackAudioContext: AudioContext | undefined;
+
+function playFeedbackSound(cue: SoundCue) {
+  const context = feedbackAudioContext ?? new AudioContext();
+  feedbackAudioContext = context;
+  void context.resume();
+  const frequencies: Record<SoundCue, number[]> = {
+    deploy: [220],
+    tactic: [294, 392],
+    claim: [330, 440],
+    turn: [196],
+    victory: [262, 330, 392, 523],
+    confirm: [330],
+  };
+  const now = context.currentTime;
+  frequencies[cue].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const start = now + index * 0.065;
+    oscillator.type = cue === "tactic" ? "triangle" : "sine";
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.055, start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.12);
+  });
+}
+
+function commandSound(command: GameCommand, next: GameState): SoundCue {
+  if (next.phase === "finished") return "victory";
+  if (command.type === "claim-flag") return "claim";
+  if (command.type === "play-tactic") return "tactic";
+  if (command.type === "play-troop") return "deploy";
+  return "turn";
+}
 
 function cardView(cardId: CardId) {
   const tactic = getTacticCard(cardId);
@@ -191,6 +242,7 @@ type SavedGame = {
   appVersion: string;
   savedAt: string;
   matchMode?: MatchMode;
+  aiDifficulty?: AiDifficulty;
   replay?: {
     initialState: GameState;
     commands: GameCommand[];
@@ -349,36 +401,109 @@ function TutorialCoach({
   );
 }
 
+function ExperienceSettings({
+  open,
+  soundEnabled,
+  reducedMotion,
+  onSoundChange,
+  onReducedMotionChange,
+  onClose,
+}: {
+  open: boolean;
+  soundEnabled: boolean;
+  reducedMotion: boolean;
+  onSoundChange: (enabled: boolean) => void;
+  onReducedMotionChange: (enabled: boolean) => void;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="rules-backdrop" data-testid="experience-settings">
+      <aside
+        aria-label="体验设置"
+        aria-modal="true"
+        className="rules-drawer experience-drawer"
+        role="dialog"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">R5 · EXPERIENCE</p>
+            <h2>体验设置</h2>
+          </div>
+          <button aria-label="关闭体验设置" onClick={onClose} type="button">
+            关闭
+          </button>
+        </header>
+        <section className="experience-options">
+          <label>
+            <input
+              checked={soundEnabled}
+              onChange={(event) => onSoundChange(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <strong>音效反馈</strong>
+              <small>为部署、战术、占旗和胜利播放轻量提示音。</small>
+            </span>
+          </label>
+          <label>
+            <input
+              checked={reducedMotion}
+              onChange={(event) => onReducedMotionChange(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <strong>减少动态效果</strong>
+              <small>停用卡牌落位、占旗强调和 AI 推演脉冲。</small>
+            </span>
+          </label>
+        </section>
+        <p className="experience-note">
+          偏好仅保存在当前浏览器；系统“减少动态效果”设置也会自动生效。
+        </p>
+      </aside>
+    </div>
+  );
+}
+
 function SetupScreen({
   seed,
   mode,
+  aiDifficulty,
   firstPlayer,
   ready,
   canResume,
   onSeedChange,
   onModeChange,
+  onAiDifficultyChange,
   onFirstPlayerChange,
   onStart,
   onResume,
   onOpenRules,
+  onOpenSettings,
+  onOpenOnline,
 }: {
   seed: string;
   mode: MatchMode;
+  aiDifficulty: AiDifficulty;
   firstPlayer: PlayerId;
   ready: boolean;
   canResume: boolean;
   onSeedChange: (seed: string) => void;
   onModeChange: (mode: MatchMode) => void;
+  onAiDifficultyChange: (difficulty: AiDifficulty) => void;
   onFirstPlayerChange: (player: PlayerId) => void;
   onStart: () => void;
   onResume: () => void;
   onOpenRules: () => void;
+  onOpenSettings: () => void;
+  onOpenOnline: () => void;
 }) {
   return (
     <main className="setup-shell" data-ready={ready} data-testid="game-setup">
       <section className="setup-card">
         <div className="setup-intro">
-          <p className="eyebrow">R5 · SINGLE PLAYER</p>
+          <p className="eyebrow">R6 · ONLINE ROOM BETA</p>
           <span className="setup-emblem" aria-hidden="true">
             阵
           </span>
@@ -440,10 +565,37 @@ function SetupScreen({
               />
               <span>
                 <strong>单人对 AI</strong>
-                <small>你执玄甲，对阵只读取脱敏视图的简单朱羽 AI</small>
+                <small>你执玄甲，可选择简单或标准朱羽 AI</small>
               </span>
             </label>
           </fieldset>
+
+          {mode === "solo" && (
+            <fieldset>
+              <legend>AI 难度</legend>
+              <div className="first-player-options">
+                {(["standard", "easy"] as const).map((difficulty) => (
+                  <label
+                    className={aiDifficulty === difficulty ? "selected" : ""}
+                    key={difficulty}
+                  >
+                    <input
+                      checked={aiDifficulty === difficulty}
+                      name="ai-difficulty"
+                      onChange={() => onAiDifficultyChange(difficulty)}
+                      type="radio"
+                    />
+                    {difficulty === "standard" ? "标准 AI" : "简单 AI"}
+                  </label>
+                ))}
+              </div>
+              <small>
+                {aiDifficulty === "standard"
+                  ? "评估威胁、连续战线、阵型潜力与战术价值。"
+                  : "使用合法动作与基础成型启发，适合首次对战。"}
+              </small>
+            </fieldset>
+          )}
 
           <fieldset disabled={mode === "solo"}>
             <legend>先手阵营</legend>
@@ -487,6 +639,12 @@ function SetupScreen({
             <button disabled={!ready} onClick={onOpenRules} type="button">
               规则速查
             </button>
+            <button disabled={!ready} onClick={onOpenSettings} type="button">
+              体验设置
+            </button>
+            <button disabled={!ready} onClick={onOpenOnline} type="button">
+              在线房间
+            </button>
             {canResume && (
               <button disabled={!ready} onClick={onResume} type="button">
                 返回当前对局
@@ -498,6 +656,558 @@ function SetupScreen({
         <footer>
           <span>本地对战 · 自动存档</span>
           <span>{APP_VERSION}</span>
+        </footer>
+      </section>
+    </main>
+  );
+}
+
+type OnlineSession = {
+  readonly schemaVersion: 1;
+  readonly roomId: string;
+  readonly inviteCode: string;
+  readonly playerId: PlayerId;
+  readonly token: string;
+};
+
+type OnlinePayload = {
+  readonly room: PublicRoomView;
+  readonly session?: { readonly playerId: PlayerId; readonly token: string };
+  readonly snapshot?: ProtocolSnapshot;
+  readonly result?: ProtocolCommandResult;
+};
+
+function onlineCommandLabel(command: GameCommand): string {
+  if (command.type === "play-tactic")
+    return `打出 ${TACTIC_NAMES[command.cardId] ?? command.cardId}`;
+  if (command.type === "choose-scout-draw")
+    return `侦察抽牌：${command.piles.map((pile) => (pile === "troop" ? "部" : "术")).join("/")}`;
+  if (command.type === "choose-scout-return")
+    return `侦察放回：${command.cardIds.map((cardId) => cardView(cardId).title).join("、")}`;
+  if (command.type === "choose-tactic-source")
+    return `选择战线 ${command.flagId + 1} 的${cardView(command.cardId).title}`;
+  if (command.type === "choose-tactic-destination")
+    return command.discard
+      ? "弃置所选场上牌"
+      : `移动至战线 ${(command.flagId ?? 0) + 1}`;
+  if (command.type === "draw-card")
+    return `从${command.pile === "troop" ? "部队" : "战术"}牌堆补牌`;
+  if (command.type === "pass-claims") return "结束宣告";
+  if (command.type === "skip-play") return "跳过部署";
+  if (command.type === "cancel-tactic") return "取消战术";
+  if (command.type === "end-turn") return "结束回合";
+  if (command.type === "claim-flag") return `宣告战线 ${command.flagId + 1}`;
+  return `部署 ${cardView(command.cardId).title}`;
+}
+
+function OnlineRoom({
+  ready,
+  seed,
+  onBack,
+}: {
+  ready: boolean;
+  seed: string;
+  onBack: () => void;
+}) {
+  const [session, setSession] = useState<OnlineSession>();
+  const [room, setRoom] = useState<PublicRoomView>();
+  const [protocol, setProtocol] = useState<ProtocolSnapshot>();
+  const [inviteCode, setInviteCode] = useState("");
+  const [selectedCard, setSelectedCard] = useState<CardId>();
+  const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  const [connected, setConnected] = useState(true);
+  const [notice, setNotice] = useState("创建房间或输入邀请码加入对局。");
+  const revision = useRef<string | undefined>(undefined);
+  const syncing = useRef(false);
+
+  const rememberSession = useCallback((next: OnlineSession) => {
+    window.sessionStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify(next));
+    revision.current = undefined;
+    setSession(next);
+  }, []);
+
+  useEffect(() => {
+    let storedSession: OnlineSession | undefined;
+    try {
+      const raw = window.sessionStorage.getItem(ONLINE_SESSION_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as OnlineSession;
+        if (
+          stored.schemaVersion === 1 &&
+          stored.roomId &&
+          stored.token &&
+          (stored.playerId === "player-one" || stored.playerId === "player-two")
+        )
+          storedSession = stored;
+      }
+    } catch {
+      window.sessionStorage.removeItem(ONLINE_SESSION_KEY);
+    }
+    const timer = window.setTimeout(() => {
+      if (storedSession) setSession(storedSession);
+      setRestoring(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const syncRoom = useCallback(async () => {
+    if (!session || syncing.current) return;
+    syncing.current = true;
+    try {
+      const response = await fetch(`/api/rooms/${session.roomId}`, {
+        headers: {
+          authorization: `Bearer ${session.token}`,
+          ...(revision.current ? { "if-none-match": revision.current } : {}),
+        },
+        cache: "no-store",
+      });
+      if (response.status === 304) {
+        setConnected(true);
+        return;
+      }
+      if (!response.ok) throw new Error(`同步失败（${response.status}）`);
+      revision.current = response.headers.get("etag") ?? undefined;
+      const payload = (await response.json()) as OnlinePayload;
+      setRoom(payload.room);
+      if (payload.snapshot) setProtocol(payload.snapshot);
+      setConnected(true);
+    } catch (error) {
+      setConnected(false);
+      setNotice(error instanceof Error ? error.message : "房间同步失败。");
+    } finally {
+      syncing.current = false;
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    const initial = window.setTimeout(() => void syncRoom(), 0);
+    const timer = window.setInterval(() => void syncRoom(), 1_500);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [session, syncRoom]);
+
+  const roomAction = useCallback(
+    async (body: Record<string, unknown>): Promise<OnlinePayload> => {
+      if (!session) throw new Error("在线会话不存在。");
+      const response = await fetch(`/api/rooms/${session.roomId}/actions`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${session.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json()) as OnlinePayload & {
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok)
+        throw new Error(payload.message ?? payload.error ?? "房间动作失败。");
+      revision.current = response.headers.get("etag") ?? undefined;
+      setRoom(payload.room);
+      if (payload.snapshot) setProtocol(payload.snapshot);
+      setConnected(true);
+      return payload;
+    },
+    [session],
+  );
+
+  useEffect(() => {
+    if (!session) return;
+    const timer = window.setInterval(() => {
+      void roomAction({ action: "heartbeat" }).catch(() => setConnected(false));
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [roomAction, session]);
+
+  const createOnlineRoom = async () => {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/rooms", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ seed }),
+      });
+      const payload = (await response.json()) as OnlinePayload;
+      if (!response.ok || !payload.session)
+        throw new Error("创建在线房间失败。");
+      const next: OnlineSession = {
+        schemaVersion: 1,
+        roomId: payload.room.roomId,
+        inviteCode: payload.room.inviteCode,
+        playerId: payload.session.playerId,
+        token: payload.session.token,
+      };
+      rememberSession(next);
+      setRoom(payload.room);
+      setNotice("房间已创建，请分享邀请码并准备。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "创建房间失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const joinOnlineRoom = async () => {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/rooms/join", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inviteCode }),
+      });
+      const payload = (await response.json()) as OnlinePayload;
+      if (!response.ok || !payload.session)
+        throw new Error("邀请码无效或房间已满。");
+      const next: OnlineSession = {
+        schemaVersion: 1,
+        roomId: payload.room.roomId,
+        inviteCode: payload.room.inviteCode,
+        playerId: payload.session.playerId,
+        token: payload.session.token,
+      };
+      rememberSession(next);
+      setRoom(payload.room);
+      setNotice("已加入房间，请确认准备状态。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "加入房间失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleReady = async () => {
+    if (!session || !room) return;
+    setBusy(true);
+    try {
+      const current = room.seats[session.playerId]?.ready === true;
+      await roomAction({ action: "ready", ready: !current });
+      setNotice(current ? "已取消准备。" : "已准备，等待对手。 ");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "准备失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendCommand = async (command: GameCommand) => {
+    if (!session || !protocol) return;
+    const envelope = createCommandEnvelope({
+      roomId: session.roomId,
+      commandId: crypto.randomUUID(),
+      sequence: protocol.nextSequence,
+      playerId: session.playerId,
+      clientVersion: APP_VERSION,
+      expectedStateVersion: protocol.stateVersion,
+      command,
+    });
+    setBusy(true);
+    try {
+      let payload: OnlinePayload | undefined;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          payload = await roomAction({ action: "command", envelope });
+          break;
+        } catch (error) {
+          if (attempt === 1) throw error;
+          await new Promise((resolve) => window.setTimeout(resolve, 350));
+        }
+      }
+      const result = payload?.result;
+      if (!result) throw new Error("服务端未返回命令结果。");
+      if (result.status === "rejected") {
+        if (result.snapshot)
+          setProtocol((current) =>
+            current
+              ? {
+                  ...current,
+                  stateVersion: result.stateVersion,
+                  nextSequence: result.expectedSequence ?? current.nextSequence,
+                  snapshot: result.snapshot!,
+                }
+              : current,
+          );
+        throw new Error(`${result.code}：${result.message}`);
+      }
+      setProtocol((current) =>
+        current
+          ? {
+              ...current,
+              stateVersion: result.stateVersion,
+              eventCursor: result.eventCursor,
+              nextSequence: result.sequence + 1,
+              snapshot: result.snapshot,
+            }
+          : current,
+      );
+      setSelectedCard(undefined);
+      setNotice(
+        result.status === "duplicate" ? "命令已确认。" : "命令已执行。",
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "命令提交失败。");
+      void syncRoom();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leaveRoom = async () => {
+    if (session)
+      await roomAction({ action: "disconnect" }).catch(() => undefined);
+    window.sessionStorage.removeItem(ONLINE_SESSION_KEY);
+    setSession(undefined);
+    setRoom(undefined);
+    setProtocol(undefined);
+    onBack();
+  };
+
+  if (restoring)
+    return (
+      <main className="online-shell">
+        <p>正在恢复在线会话…</p>
+      </main>
+    );
+
+  if (!session || !room)
+    return (
+      <main className="online-shell" data-ready={ready}>
+        <section
+          className="online-card online-entry"
+          data-testid="online-entry"
+        >
+          <p className="eyebrow">R6 · ONLINE BETA</p>
+          <h1>在线房间</h1>
+          <p>创建六位邀请码，或加入另一位玩家已经创建的房间。</p>
+          <button
+            disabled={busy || !ready}
+            onClick={createOnlineRoom}
+            type="button"
+          >
+            创建在线房间
+          </button>
+          <div className="online-divider">
+            <span>或</span>
+          </div>
+          <label htmlFor="online-invite-code">六位邀请码</label>
+          <input
+            autoComplete="off"
+            id="online-invite-code"
+            maxLength={6}
+            onChange={(event) =>
+              setInviteCode(
+                event.target.value.toUpperCase().replace(/[^A-Z2-9]/gu, ""),
+              )
+            }
+            placeholder="例如 N2GLJW"
+            value={inviteCode}
+          />
+          <button
+            disabled={busy || inviteCode.length !== 6}
+            onClick={joinOnlineRoom}
+            type="button"
+          >
+            加入房间
+          </button>
+          <p aria-live="polite" className="online-notice">
+            {notice}
+          </p>
+          <button className="text-button" onClick={onBack} type="button">
+            返回对局设置
+          </button>
+        </section>
+      </main>
+    );
+
+  const seat = room.seats[session.playerId];
+  const view: PlayerView | undefined = protocol?.snapshot;
+  const opponent = otherPlayer(session.playerId);
+  const selectedCommands = selectedCard
+    ? (view?.legalCommands.filter(
+        (command) =>
+          (command.type === "play-troop" || command.type === "play-tactic") &&
+          command.cardId === selectedCard,
+      ) ?? [])
+    : [];
+  const auxiliaryCommands =
+    view?.legalCommands.filter(
+      (command) =>
+        command.type !== "play-troop" &&
+        command.type !== "claim-flag" &&
+        !(command.type === "play-tactic" && command.flagId !== undefined),
+    ) ?? [];
+
+  return (
+    <main className="online-shell" data-testid="online-room">
+      <section className="online-card online-lobby">
+        <header>
+          <div>
+            <p className="eyebrow">R6 · M15-B2 LIVE SYNC</p>
+            <h1>房间 {room.inviteCode}</h1>
+          </div>
+          <span
+            className={`connection-pill ${connected ? "online" : "offline"}`}
+          >
+            {connected ? "已连接" : "正在重连"}
+          </span>
+        </header>
+
+        {room.status === "waiting" || room.status === "ready" ? (
+          <div className="online-waiting">
+            <p>将邀请码发给另一位玩家，双方准备后自动开局。</p>
+            <button
+              onClick={() =>
+                void navigator.clipboard.writeText(room.inviteCode)
+              }
+              type="button"
+            >
+              复制邀请码 {room.inviteCode}
+            </button>
+            <div className="online-seats">
+              {(["player-one", "player-two"] as const).map((player) => {
+                const playerSeat = room.seats[player];
+                return (
+                  <article key={player}>
+                    <strong>{playerName(player)}</strong>
+                    <span>
+                      {playerSeat
+                        ? playerSeat.connected
+                          ? "在线"
+                          : "断线保留"
+                        : "等待加入"}
+                    </span>
+                    <small>{playerSeat?.ready ? "已准备" : "未准备"}</small>
+                  </article>
+                );
+              })}
+            </div>
+            <button disabled={busy} onClick={toggleReady} type="button">
+              {seat?.ready ? "取消准备" : "确认准备"}
+            </button>
+          </div>
+        ) : view ? (
+          <div className="online-match">
+            <div className="online-turn">
+              <strong>
+                {view.activePlayer === session.playerId
+                  ? "轮到你行动"
+                  : "等待对手行动"}
+              </strong>
+              <span>
+                {PHASE_NAMES[view.phase]} · 第 {view.turn} 回合
+              </span>
+            </div>
+            <div className="online-opponent-hand">
+              {playerName(opponent)}手牌 · {view.players[opponent].handCount} 张
+            </div>
+            <div className="online-flags">
+              {view.flags.map((flag) => {
+                const flagCommand =
+                  selectedCommands.find(
+                    (command) =>
+                      "flagId" in command && command.flagId === flag.id,
+                  ) ??
+                  view.legalCommands.find(
+                    (command) =>
+                      command.type === "claim-flag" &&
+                      command.flagId === flag.id,
+                  );
+                return (
+                  <article key={flag.id}>
+                    <div className="online-formation opponent">
+                      {flag.sides[opponent].cards.map((cardId) => (
+                        <CardFace cardId={cardId} compact key={cardId} />
+                      ))}
+                    </div>
+                    <button
+                      disabled={busy || !flagCommand}
+                      onClick={() =>
+                        flagCommand && void sendCommand(flagCommand)
+                      }
+                      type="button"
+                    >
+                      <span>战线 {flag.id + 1}</span>
+                      <strong>
+                        {flag.owner
+                          ? `${playerName(flag.owner)}占领`
+                          : flagCommand
+                            ? onlineCommandLabel(flagCommand)
+                            : "未决"}
+                      </strong>
+                    </button>
+                    <div className="online-formation">
+                      {flag.sides[session.playerId].cards.map((cardId) => (
+                        <CardFace cardId={cardId} compact key={cardId} />
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="online-hand">
+              <strong>你的手牌</strong>
+              <div>
+                {view.hand.map((cardId) => (
+                  <button
+                    aria-pressed={selectedCard === cardId}
+                    disabled={busy}
+                    key={cardId}
+                    onClick={() =>
+                      setSelectedCard((current) =>
+                        current === cardId ? undefined : cardId,
+                      )
+                    }
+                    type="button"
+                  >
+                    <CardFace cardId={cardId} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="online-commands">
+              {auxiliaryCommands.map((command, index) => (
+                <button
+                  disabled={busy}
+                  key={`${command.type}-${index}`}
+                  onClick={() => void sendCommand(command)}
+                  type="button"
+                >
+                  {onlineCommandLabel(command)}
+                </button>
+              ))}
+              {view.phase === "finished" && (
+                <button
+                  disabled={busy}
+                  onClick={() => void roomAction({ action: "rematch" })}
+                  type="button"
+                >
+                  请求再战
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p>对局已开始，正在取得你的私密快照…</p>
+        )}
+
+        <p aria-live="polite" className="online-notice">
+          {notice}
+        </p>
+        <footer>
+          <button className="text-button" onClick={onBack} type="button">
+            返回设置（保留会话）
+          </button>
+          <button
+            className="text-button danger"
+            onClick={leaveRoom}
+            type="button"
+          >
+            离开房间
+          </button>
         </footer>
       </section>
     </main>
@@ -552,11 +1262,19 @@ function HandoffGate({
   );
 }
 
-function AiThinkingScreen({ notice }: { notice: string }) {
+function AiThinkingScreen({
+  notice,
+  difficulty,
+}: {
+  notice: string;
+  difficulty: AiDifficulty;
+}) {
   return (
     <main className="handoff-shell" data-testid="ai-thinking">
       <section className="handoff-card ai-thinking-card">
-        <p className="eyebrow">R5 · EASY AI</p>
+        <p className="eyebrow">
+          R5 · {difficulty === "standard" ? "STANDARD AI" : "EASY AI"}
+        </p>
         <span className="handoff-emblem player-two" aria-hidden="true">
           谋
         </span>
@@ -766,16 +1484,21 @@ function ReplayDrawer({
 
 function GameResult({
   state,
+  rematchLabel,
   onRematch,
   onNewGame,
   onOpenReplay,
+  onOpenSettings,
 }: {
   state: GameState;
+  rematchLabel: string;
   onRematch: () => void;
   onNewGame: () => void;
   onOpenReplay: () => void;
+  onOpenSettings: () => void;
 }) {
   const summary = buildGameSummary(state);
+  const review = buildGameReview(state);
   return (
     <main className="result-shell" data-testid="game-result">
       <section className="result-card">
@@ -802,15 +1525,69 @@ function GameResult({
             <b>{summary.claimedFlags["player-two"].length}</b>
           </div>
         </div>
+        <section className="game-review" data-testid="game-review">
+          <div className="review-heading">
+            <div>
+              <span>POST-GAME REVIEW</span>
+              <h2>复盘摘要</h2>
+            </div>
+            <b>{review.leadChanges} 次领先易手</b>
+          </div>
+          <div className="review-table" role="table" aria-label="双方对局统计">
+            <div className="review-row review-header" role="row">
+              <span role="columnheader">阵营</span>
+              <span role="columnheader">部署</span>
+              <span role="columnheader">战术</span>
+              <span role="columnheader">补牌</span>
+              <span role="columnheader">占旗</span>
+            </div>
+            {(["player-one", "player-two"] as const).map((player) => (
+              <div className="review-row" key={player} role="row">
+                <strong role="cell">{playerName(player)}</strong>
+                <span role="cell">
+                  {review.players[player].troopDeployments}
+                </span>
+                <span role="cell">{review.players[player].tacticsPlayed}</span>
+                <span role="cell">{review.players[player].cardsDrawn}</span>
+                <span role="cell">{review.players[player].flagsClaimed}</span>
+              </div>
+            ))}
+          </div>
+          <ul className="review-insights">
+            {review.firstClaim && (
+              <li>
+                <span>首旗</span>
+                {playerName(review.firstClaim.player)}在事件{" "}
+                {review.firstClaim.eventIndex} 占领战线{" "}
+                {review.firstClaim.flagId + 1}
+              </li>
+            )}
+            <li>
+              <span>胜负手</span>
+              {playerName(review.decisiveClaim.player)}在事件{" "}
+              {review.decisiveClaim.eventIndex} 拿下战线{" "}
+              {review.decisiveClaim.flagId + 1}
+            </li>
+            <li>
+              <span>走势</span>
+              {review.winnerCameBack
+                ? `${playerName(summary.winner)}曾在占旗数上落后，最终完成逆转。`
+                : `${playerName(summary.winner)}未曾在占旗数上落后，保持主动至终局。`}
+            </li>
+          </ul>
+        </section>
         <div className="handoff-actions">
           <button onClick={onRematch} type="button">
-            交换先手再战
+            {rematchLabel}
           </button>
           <button onClick={onNewGame} type="button">
             返回全新对局
           </button>
           <button onClick={onOpenReplay} type="button">
             查看与导出回放
+          </button>
+          <button onClick={onOpenSettings} type="button">
+            体验设置
           </button>
         </div>
       </section>
@@ -826,9 +1603,15 @@ export function GameTable() {
   );
   const [seed, setSeed] = useState("r3-local-match");
   const [mode, setMode] = useState<MatchMode>("standard");
+  const [aiDifficulty, setAiDifficulty] = useState<AiDifficulty>("standard");
   const [firstPlayer, setFirstPlayer] = useState<PlayerId>("player-one");
   const [rulesOpen, setRulesOpen] = useState(false);
   const [replayOpen, setReplayOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [onlineOpen, setOnlineOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [preferencesReady, setPreferencesReady] = useState(false);
   const [state, setState] = useState<GameState>(() =>
     newGame("r3-local-match"),
   );
@@ -848,6 +1631,45 @@ export function GameTable() {
     [state],
   );
   const opponent = otherPlayer(view.viewer);
+
+  useEffect(() => {
+    let preferences = { soundEnabled: false, reducedMotion: false };
+    try {
+      const raw = window.localStorage.getItem(PREFERENCES_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as {
+          soundEnabled?: boolean;
+          reducedMotion?: boolean;
+        };
+        preferences = {
+          soundEnabled: stored.soundEnabled === true,
+          reducedMotion: stored.reducedMotion === true,
+        };
+      }
+    } catch {
+      window.localStorage.removeItem(PREFERENCES_KEY);
+    }
+    const timer = window.setTimeout(() => {
+      setSoundEnabled(preferences.soundEnabled);
+      setReducedMotion(preferences.reducedMotion);
+      setPreferencesReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.reducedMotion = reducedMotion
+      ? "true"
+      : "false";
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (!preferencesReady) return;
+    window.localStorage.setItem(
+      PREFERENCES_KEY,
+      JSON.stringify({ soundEnabled, reducedMotion }),
+    );
+  }, [preferencesReady, reducedMotion, soundEnabled]);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(SAVE_KEY);
@@ -879,10 +1701,14 @@ export function GameTable() {
       setReplayInitialState(saved.replay?.initialState ?? saved.state);
       setReplayCommands(saved.replay?.commands ?? []);
       setSeed(saved.state.seed);
-      setMode(saved.matchMode ?? modeForState(saved.state));
+      const savedMode = saved.matchMode ?? modeForState(saved.state);
+      setMode(savedMode);
+      setAiDifficulty(saved.aiDifficulty ?? "easy");
       setFirstPlayer(
-        saved.state.events.find((event) => event.type === "game-started")
-          ?.firstPlayer ?? "player-one",
+        savedMode === "solo"
+          ? "player-one"
+          : (saved.state.events.find((event) => event.type === "game-started")
+              ?.firstPlayer ?? "player-one"),
       );
       setHasActiveGame(true);
       setShowSetup(false);
@@ -899,12 +1725,14 @@ export function GameTable() {
       appVersion: APP_VERSION,
       savedAt: new Date().toISOString(),
       matchMode: mode,
+      aiDifficulty,
       replay: { initialState: replayInitialState, commands: replayCommands },
       state,
     };
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   }, [
     hasActiveGame,
+    aiDifficulty,
     mode,
     ready,
     replayCommands,
@@ -918,13 +1746,15 @@ export function GameTable() {
     firstPlayer: PlayerId = "player-one",
     nextMode: MatchMode = mode,
   ) => {
-    const next = newGame(nextSeed, firstPlayer, nextMode);
+    const resolvedFirstPlayer =
+      nextMode === "solo" ? "player-one" : firstPlayer;
+    const next = newGame(nextSeed, resolvedFirstPlayer, nextMode);
     setState(next);
     setReplayInitialState(next);
     setReplayCommands([]);
     setSeed(next.seed);
     setMode(nextMode);
-    setFirstPlayer(firstPlayer);
+    setFirstPlayer(resolvedFirstPlayer);
     setHasActiveGame(true);
     setShowSetup(false);
     setRevealedPlayer(undefined);
@@ -945,6 +1775,7 @@ export function GameTable() {
       setSelectedCard(undefined);
       setReturnCards([]);
       setNotice("命令已执行，请继续当前阶段。");
+      if (soundEnabled) playFeedbackSound(commandSound(command, next));
     } catch (error) {
       setNotice(
         error instanceof RuleError
@@ -969,7 +1800,7 @@ export function GameTable() {
       try {
         const aiView = projectForPlayer(state, "player-two");
         const decision = chooseAiCommand(aiView, {
-          difficulty: "easy",
+          difficulty: aiDifficulty,
           seed: `${state.seed}:zhu-yu`,
           decisionIndex: replayCommands.length,
           timeBudgetMs: 8,
@@ -978,6 +1809,8 @@ export function GameTable() {
         setState(next);
         setReplayCommands((current) => [...current, decision.command]);
         setNotice(`朱羽 AI：${decision.reason}`);
+        if (soundEnabled)
+          playFeedbackSound(commandSound(decision.command, next));
         if (next.activePlayer !== "player-two") setRevealedPlayer(undefined);
       } catch (error) {
         setNotice(
@@ -986,7 +1819,16 @@ export function GameTable() {
       }
     }, 260);
     return () => window.clearTimeout(timer);
-  }, [hasActiveGame, mode, ready, replayCommands.length, showSetup, state]);
+  }, [
+    aiDifficulty,
+    hasActiveGame,
+    mode,
+    ready,
+    replayCommands.length,
+    showSetup,
+    soundEnabled,
+    state,
+  ]);
 
   const commandsForCard = (cardId: CardId) =>
     view.legalCommands.filter(
@@ -1089,19 +1931,47 @@ export function GameTable() {
     setNotice("回放档案已校验并导入。");
   };
 
+  const settingsDrawer = (
+    <ExperienceSettings
+      onClose={() => setSettingsOpen(false)}
+      onReducedMotionChange={setReducedMotion}
+      onSoundChange={(enabled) => {
+        setSoundEnabled(enabled);
+        if (enabled) playFeedbackSound("confirm");
+      }}
+      open={settingsOpen}
+      reducedMotion={reducedMotion}
+      soundEnabled={soundEnabled}
+    />
+  );
+
+  if (onlineOpen) {
+    return (
+      <OnlineRoom
+        onBack={() => setOnlineOpen(false)}
+        ready={ready}
+        seed={seed}
+      />
+    );
+  }
+
   if (showSetup) {
     return (
       <>
         <SetupScreen
+          aiDifficulty={aiDifficulty}
           canResume={hasActiveGame}
           firstPlayer={firstPlayer}
           mode={mode}
           onFirstPlayerChange={setFirstPlayer}
+          onAiDifficultyChange={setAiDifficulty}
           onModeChange={(nextMode) => {
             setMode(nextMode);
             if (nextMode === "solo") setFirstPlayer("player-one");
           }}
           onOpenRules={() => setRulesOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenOnline={() => setOnlineOpen(true)}
           onResume={() => setShowSetup(false)}
           onSeedChange={setSeed}
           onStart={() =>
@@ -1115,6 +1985,7 @@ export function GameTable() {
           seed={seed}
         />
         <RulesDrawer onClose={() => setRulesOpen(false)} open={rulesOpen} />
+        {settingsDrawer}
       </>
     );
   }
@@ -1126,9 +1997,11 @@ export function GameTable() {
     return (
       <>
         <GameResult
+          rematchLabel={mode === "solo" ? "以同难度再战" : "交换先手再战"}
           state={state}
           onNewGame={() => setShowSetup(true)}
           onOpenReplay={() => setReplayOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
           onRematch={() =>
             beginNewGame(
               `${state.seed}:rematch:${Date.now()}`,
@@ -1146,26 +2019,35 @@ export function GameTable() {
           onImport={importArchive}
           open={replayOpen}
         />
+        {settingsDrawer}
       </>
     );
   }
 
   if (mode === "solo" && state.activePlayer === "player-two") {
-    return <AiThinkingScreen notice={notice} />;
+    return (
+      <>
+        <AiThinkingScreen difficulty={aiDifficulty} notice={notice} />
+        {settingsDrawer}
+      </>
+    );
   }
 
   if (revealedPlayer !== state.activePlayer) {
     return (
-      <HandoffGate
-        onAccept={() => {
-          setRevealedPlayer(state.activePlayer);
-          setRestored(false);
-        }}
-        onNewGame={() => setShowSetup(true)}
-        ready={ready}
-        restored={restored}
-        state={state}
-      />
+      <>
+        <HandoffGate
+          onAccept={() => {
+            setRevealedPlayer(state.activePlayer);
+            setRestored(false);
+          }}
+          onNewGame={() => setShowSetup(true)}
+          ready={ready}
+          restored={restored}
+          state={state}
+        />
+        {settingsDrawer}
+      </>
     );
   }
 
@@ -1174,7 +2056,7 @@ export function GameTable() {
       <main className="game-shell" data-ready={ready}>
         <header className="game-header">
           <div className="brand-lockup">
-            <p className="eyebrow">R5 · M13 AI BUILD</p>
+            <p className="eyebrow">R6 · ONLINE RC1</p>
             <h1>古战阵</h1>
             <p>九线争锋 · 本地规则原型</p>
           </div>
@@ -1207,6 +2089,13 @@ export function GameTable() {
               type="button"
             >
               对局设置
+            </button>
+            <button
+              disabled={!ready}
+              onClick={() => setSettingsOpen(true)}
+              type="button"
+            >
+              体验设置
             </button>
             <button
               className="handoff-now"
@@ -1565,6 +2454,7 @@ export function GameTable() {
         onImport={importArchive}
         open={replayOpen}
       />
+      {settingsDrawer}
     </>
   );
 }

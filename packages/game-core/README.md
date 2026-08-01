@@ -9,7 +9,7 @@
 - `createReplayArchive(initialState, commands)`：生成带最终状态指纹的版本化回放档案。
 - `replayTo(archive, commandCount)`：重演到任意命令节点，不修改档案内容。
 - `exportReplay()` / `importReplay()`：序列化、校验并拒绝被篡改的回放。
-- `chooseAiCommand(playerView, options)`：只基于脱敏玩家视图选择确定性合法 AI 命令。
+- `chooseAiCommand(playerView, options)`：只基于脱敏玩家视图选择确定性合法 AI 命令，支持 `easy` 与 `standard` 难度。
 - `getLegalCommands(state, player)`：返回该玩家当前可以提交的具体命令。
 - `applyCommand(state, command)`：返回新状态；不会修改输入状态。
 - `validateCommand(state, command)`：以稳定 `RuleErrorCode` 返回非法原因。
@@ -26,6 +26,15 @@
 - `projectForSpectator(state)`：隐藏双方手牌、牌堆顺序和私密事件内容。
 - `projectForReplay(state, access)`：按公开、玩家或全知权限生成回放快照。
 - `buildGameSummary(state)`：从结束状态生成冻结且可序列化的胜利摘要。
+- `buildGameReview(state)`：从事件流生成双方统计、首旗、制胜旗、领先易手和逆转摘要。
+- `createCommandEnvelope()` / `decodeCommandEnvelope()`：创建并校验 M14 版本化客户端意图。
+- `processProtocolCommand()`：以房间、身份、序号、幂等键和预期状态版本执行权威命令。
+- `createReconnectSnapshot()`：生成只包含指定玩家投影的最新重连快照。
+- `createAuthoritativeRoom()` / `joinAuthoritativeRoom()`：创建邀请房间并绑定双人席位凭据摘要。
+- `setRoomReady()` / `submitRoomCommand()`：启动权威对局并通过 M14 处理已认证命令。
+- `disconnectRoomPlayer()` / `reconnectRoomPlayer()`：管理短时断线保留与玩家专属恢复快照。
+- `voteRoomRematch()` / `expireAuthoritativeRoom()`：处理双方再战和确定性房间过期。
+- `projectPublicRoom()`：生成不含凭据、完整状态或隐藏牌的公开房间视图。
 - `simulateStandardGame(seed)`：使用全部规则运行可复现的合法动作自动对局。
 
 所有随机来源均由字符串种子派生。事件序号同时用于回放顺序和同级同点阵型的完成先后比较。
@@ -40,4 +49,4 @@
 
 ## 当前状态与非目标
 
-R2 规则闭环已经完成：提前占旗、全部战术、胜利摘要、状态投影和 5,000 局完整规则验证均已通过。Web 对局交互由 R3 实现。
+R2 规则闭环、R3 Web 对局、R4 教学回放与 R5 单人体验均已完成。R6 已完成 M14 协议、M15-A 房间状态机、M15-B1 持久化 API 与 M15-B2 在线客户端；当前等待部署联调和弱网出口验证。

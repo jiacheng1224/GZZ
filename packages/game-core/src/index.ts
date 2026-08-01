@@ -1,4 +1,4 @@
-export const GAME_CORE_VERSION = "1.0.0-r5.m13.easy";
+export const GAME_CORE_VERSION = "1.5.0-r6.m15.sync";
 
 export * from "./ai";
 export * from "./cards";
@@ -11,7 +11,10 @@ export * from "./invariants";
 export * from "./random";
 export * from "./replay";
 export * from "./report";
+export * from "./review";
+export * from "./room";
 export * from "./projection";
+export * from "./protocol";
 export * from "./simulation";
 export * from "./tactics";
 export * from "./victory";

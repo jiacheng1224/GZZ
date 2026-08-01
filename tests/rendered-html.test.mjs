@@ -29,12 +29,13 @@ test("server-renders the M11 match setup without hand identities", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>古战阵 · 九线争锋<\/title>/i);
-  assert.match(html, /R5 · SINGLE PLAYER/);
-  assert.match(html, /1\.3\.0-r5\.m13a/);
+  assert.match(html, /R6 · ONLINE ROOM BETA/);
+  assert.match(html, /2\.0\.0-r6\.rc1/);
   assert.match(html, /标准对局/);
   assert.match(html, /基础对局/);
   assert.match(html, /引导对局/);
   assert.match(html, /单人对 AI/);
+  assert.match(html, /在线房间/);
   assert.match(html, /规则速查/);
   assert.match(html, /开始本地对战/);
   assert.match(html, /data-testid="game-setup"/);

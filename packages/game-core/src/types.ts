@@ -91,6 +91,28 @@ export type GameSummary = {
   readonly eventCount: number;
 };
 
+export type GameReviewPlayerStats = {
+  readonly troopDeployments: number;
+  readonly tacticsPlayed: number;
+  readonly cardsDrawn: number;
+  readonly flagsClaimed: number;
+};
+
+export type GameReviewMoment = {
+  readonly eventIndex: number;
+  readonly player: PlayerId;
+  readonly flagId: number;
+};
+
+export type GameReview = {
+  readonly schemaVersion: 1;
+  readonly players: Readonly<Record<PlayerId, GameReviewPlayerStats>>;
+  readonly firstClaim?: GameReviewMoment;
+  readonly decisiveClaim: GameReviewMoment;
+  readonly leadChanges: number;
+  readonly winnerCameBack: boolean;
+};
+
 export type FormationKind =
   "wedge" | "phalanx" | "battalion" | "skirmish" | "host";
 

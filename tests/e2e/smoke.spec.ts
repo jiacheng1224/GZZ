@@ -16,6 +16,7 @@ async function startMatch(
   options: {
     seed?: string;
     mode?: "standard" | "basic" | "tutorial" | "solo";
+    aiDifficulty?: "easy" | "standard";
     firstPlayer?: PlayerId;
   } = {},
 ) {
@@ -30,6 +31,8 @@ async function startMatch(
     await page.getByText("引导对局", { exact: true }).click();
   if (options.mode === "solo")
     await page.getByText("单人对 AI", { exact: true }).click();
+  if (options.aiDifficulty === "easy")
+    await page.getByText("简单 AI", { exact: true }).click();
   if (options.firstPlayer === "player-two")
     await page.getByText("朱羽先手", { exact: true }).click();
   await page
@@ -68,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "1.3.0-r5.m13a",
+    appVersion: "2.0.0-r6.rc1",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -147,6 +150,104 @@ test("opens the rules reference with all five formation examples", async ({
   await expect(drawer).toHaveCount(0);
 });
 
+test("creates an online room and restores its ready lobby without exposing the token", async ({
+  page,
+}) => {
+  const token = "a".repeat(43);
+  const onlineRoom = {
+    schemaVersion: 1,
+    roomId: "room-e2e-online",
+    inviteCode: "N2GLJW",
+    status: "waiting",
+    generation: 0,
+    createdAt: 1_000,
+    updatedAt: 1_000,
+    expiresAt: 61_000,
+    seats: {
+      "player-one": {
+        playerId: "player-one",
+        ready: false,
+        connected: true,
+        joinedAt: 1_000,
+        lastSeenAt: 1_000,
+      },
+    },
+    rematchVotes: [],
+  };
+  await page.route("**/api/rooms**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === "POST" && url.pathname === "/api/rooms") {
+      await route.fulfill({
+        status: 201,
+        headers: { etag: '"1"' },
+        json: {
+          room: onlineRoom,
+          session: { playerId: "player-one", token },
+        },
+      });
+      return;
+    }
+    if (url.pathname.endsWith("/actions")) {
+      const body = request.postDataJSON() as {
+        action?: string;
+        ready?: boolean;
+      };
+      if (body.action === "ready")
+        onlineRoom.seats["player-one"].ready = body.ready === true;
+      await route.fulfill({
+        headers: { etag: '"2"' },
+        json: { room: onlineRoom },
+      });
+      return;
+    }
+    await route.fulfill({
+      headers: { etag: '"2"' },
+      json: { room: onlineRoom },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "在线房间" }).click();
+  await expect(page.getByTestId("online-entry")).toBeVisible();
+  await page.getByRole("button", { name: "创建在线房间" }).click();
+  await expect(page.getByTestId("online-room")).toContainText("N2GLJW");
+  await page.getByRole("button", { name: "确认准备" }).click();
+  await expect(page.getByTestId("online-room")).toContainText("已准备");
+  await expect(page.locator("body")).not.toContainText(token);
+});
+
+test("persists sound and reduced-motion experience preferences", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "体验设置" }).click();
+  const drawer = page.getByRole("dialog", { name: "体验设置" });
+  const sound = drawer.getByRole("checkbox", { name: /音效反馈/ });
+  const reducedMotion = drawer.getByRole("checkbox", {
+    name: /减少动态效果/,
+  });
+  await sound.check();
+  await reducedMotion.check();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-reduced-motion",
+    "true",
+  );
+  await page.getByRole("button", { name: "关闭体验设置" }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "体验设置" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "体验设置" }).getByRole("checkbox", {
+      name: /音效反馈/,
+    }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("dialog", { name: "体验设置" }).getByRole("checkbox", {
+      name: /减少动态效果/,
+    }),
+  ).toBeChecked();
+});
+
 test("guides a new player through the first flag claim", async ({ page }) => {
   await page.goto("/");
   await startMatch(page, { mode: "tutorial", seed: "m11-first-flag" });
@@ -186,7 +287,7 @@ test("starts standard and basic matches from explicit setup", async ({
   await expect(page.getByText("战术牌堆 0")).toBeVisible();
 });
 
-test("runs the朱羽 easy AI turn without exposing either hand", async ({
+test("runs the朱羽 standard AI turn without exposing either hand", async ({
   page,
 }) => {
   await page.goto("/");
@@ -202,6 +303,45 @@ test("runs the朱羽 easy AI turn without exposing either hand", async ({
   await acceptHandoff(page);
   await expect(page.getByLabel("对局状态")).toContainText("第 3 回合");
   await expect(page.locator(".opponent-formation .card-face")).toHaveCount(1);
+});
+
+test("offers the easy AI policy as a reproducible solo difficulty", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await startMatch(page, {
+    mode: "solo",
+    aiDifficulty: "easy",
+    seed: "r5-solo-easy-policy",
+  });
+  await acceptHandoff(page);
+  await deployAndDraw(page, 0);
+  await expect(page.getByTestId("ai-thinking")).toContainText("EASY AI");
+  await expect(page.getByText("请将设备交给玄甲")).toBeVisible();
+});
+
+test("normalizes a restored solo setup to the human first player", async ({
+  page,
+}) => {
+  const state = createStandardGame(
+    "r5-restored-solo-first-player",
+    "player-two",
+  );
+  await page.addInitScript(
+    ({ key, saved }) => localStorage.setItem(key, JSON.stringify(saved)),
+    {
+      key: SAVE_KEY,
+      saved: {
+        ...saveEnvelope(state),
+        matchMode: "solo",
+        aiDifficulty: "standard",
+      },
+    },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "放弃当前进度，开始新局" }).click();
+  await expect(page.getByRole("radio", { name: "玄甲先手" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "标准 AI" })).toBeChecked();
 });
 
 test("protects handoff while completing the first local turn", async ({
@@ -383,6 +523,11 @@ for (const [condition, label] of [
     await loadSavedState(page, victoryFixture(condition));
     await expect(page.getByTestId("game-result")).toBeVisible();
     await expect(page.getByText(label, { exact: true })).toBeVisible();
+    await expect(page.getByTestId("game-review")).toContainText("复盘摘要");
+    await expect(page.getByTestId("game-review")).toContainText("胜负手");
+    await expect(
+      page.getByRole("table", { name: "双方对局统计" }),
+    ).toBeVisible();
     if (condition === "breakthrough") {
       await page.getByRole("button", { name: "查看与导出回放" }).click();
       const replay = page.getByRole("dialog", { name: "对局回放" });
