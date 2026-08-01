@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.0.0-r6.rc1",
+    appVersion: "2.1.0-m16a",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -142,10 +142,10 @@ test("opens the rules reference with all five formation examples", async ({
   const drawer = page.getByRole("dialog", { name: "规则速查" });
   await expect(drawer).toBeVisible();
   await expect(drawer.locator(".formation-reference li")).toHaveCount(5);
-  await expect(drawer).toContainText("连续三条战线");
-  await expect(drawer).toContainText("任意五条战线");
-  await expect(drawer).toContainText("楔形阵");
-  await expect(drawer).toContainText("军团");
+  await expect(drawer).toContainText("连续三座烽垒");
+  await expect(drawer).toContainText("任意五座烽垒");
+  await expect(drawer).toContainText("贯锋");
+  await expect(drawer).toContainText("集阵");
   await page.getByRole("button", { name: "关闭规则速查" }).click();
   await expect(drawer).toHaveCount(0);
 });
@@ -254,14 +254,14 @@ test("guides a new player through the first flag claim", async ({ page }) => {
   await acceptHandoff(page);
 
   const coach = page.getByTestId("tutorial-coach");
-  await expect(coach).toContainText("选择赤 10");
-  await page.getByRole("button", { name: "赤 10 部队" }).click();
-  await expect(coach).toContainText("部署到战线 1");
+  await expect(coach).toContainText("选择燧锋 10");
+  await page.getByRole("button", { name: "燧锋 10 阵兵" }).click();
+  await expect(coach).toContainText("部署到烽垒 1");
   await page.getByTestId("flag-target-0").click();
-  await expect(coach).toContainText("宣告战线 1");
+  await expect(coach).toContainText("争取烽垒 1");
   await page.getByTestId("flag-target-0").click();
   await expect(page.getByTestId("flag-0")).toContainText("玄甲占领");
-  await expect(coach).toContainText("首面旗帜已占领");
+  await expect(coach).toContainText("首座烽垒已占领");
   await page.getByTestId("pass-claims").click();
   await page.getByTestId("draw-troop").click();
 
@@ -275,7 +275,7 @@ test("starts standard and basic matches from explicit setup", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "古战阵" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "烽垒九章" })).toBeVisible();
   await startMatch(page, {
     seed: "r3-basic-mode",
     mode: "basic",
@@ -284,7 +284,7 @@ test("starts standard and basic matches from explicit setup", async ({
   await expect(page.getByText("请将设备交给朱羽")).toBeVisible();
   await acceptHandoff(page);
   await expect(page.getByText("基础对局", { exact: true })).toBeVisible();
-  await expect(page.getByText("战术牌堆 0")).toBeVisible();
+  await expect(page.getByText("谋策牌堆 0")).toBeVisible();
 });
 
 test("runs the朱羽 standard AI turn without exposing either hand", async ({
@@ -348,7 +348,7 @@ test("protects handoff while completing the first local turn", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/古战阵/);
+  await expect(page).toHaveTitle(/烽垒九章/);
   await startMatch(page);
   await expect(page.getByText("请将设备交给玄甲")).toBeVisible();
   await acceptHandoff(page);
@@ -398,7 +398,7 @@ test("routes drag and drop through the same deployment command", async ({
     .dragTo(page.getByTestId("flag-0"));
   await expect(page.getByTestId("hand-card")).toHaveCount(6);
   await expect(
-    page.getByRole("heading", { name: "宣告战线", level: 2 }),
+    page.getByRole("heading", { name: "争取烽垒", level: 2 }),
   ).toBeVisible();
 });
 
@@ -449,17 +449,17 @@ test("resolves Scout through the multi-step command panel", async ({
   await deployAndDraw(page, 1, "troop");
   await acceptHandoff(page);
 
-  await page.getByRole("button", { name: "侦察 诡计" }).click();
-  await page.getByRole("button", { name: "打出侦察" }).click();
-  await page.getByRole("button", { name: "侦察：部 / 部 / 部" }).click();
+  await page.getByRole("button", { name: "远候 机变" }).click();
+  await page.getByRole("button", { name: "打出远候" }).click();
+  await page.getByRole("button", { name: "远候：兵 / 兵 / 兵" }).click();
   await page.getByTestId("hand-card").first().click();
   await page.getByTestId("hand-card").nth(1).click();
   await page.getByRole("button", { name: "放回已选 2/2 张" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "宣告战线", level: 2 }),
+    page.getByRole("heading", { name: "争取烽垒", level: 2 }),
   ).toBeVisible();
-  await expect(page.getByText("战术结算完成")).toBeVisible();
+  await expect(page.getByText("谋策结算完成")).toBeVisible();
 });
 
 test("auto-saves and restores the exact local position behind handoff", async ({
@@ -493,23 +493,23 @@ test("auto-saves and restores the exact local position behind handoff", async ({
 test("plays Fog as a representative environment tactic", async ({ page }) => {
   await loadSavedState(page, tacticFixture("tactic-fog"));
   await acceptHandoff(page);
-  await page.getByRole("button", { name: "迷雾 环境" }).click();
+  await page.getByRole("button", { name: "烟障 地势" }).click();
   await page.getByTestId("flag-target-0").click();
-  await expect(page.getByTestId("flag-0")).toContainText("迷雾");
+  await expect(page.getByTestId("flag-0")).toContainText("烟障");
   await expect(
-    page.getByRole("heading", { name: "宣告战线", level: 2 }),
+    page.getByRole("heading", { name: "争取烽垒", level: 2 }),
   ).toBeVisible();
 });
 
 test("plays Deserter as a representative field tactic", async ({ page }) => {
   await loadSavedState(page, tacticFixture("tactic-deserter", true));
   await acceptHandoff(page);
-  await page.getByRole("button", { name: "逃兵 诡计" }).click();
-  await page.getByRole("button", { name: "打出逃兵" }).click();
+  await page.getByRole("button", { name: "离营 机变" }).click();
+  await page.getByRole("button", { name: "打出离营" }).click();
   await page.locator(".opponent-formation .source-card").click();
   await expect(page.getByText("场上牌被弃置")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "宣告战线", level: 2 }),
+    page.getByRole("heading", { name: "争取烽垒", level: 2 }),
   ).toBeVisible();
 });
 

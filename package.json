@@ -1,6 +1,6 @@
 {
   "name": "guzhanzhen-web",
-  "version": "2.0.0-r6.rc1",
+  "version": "2.1.0-m16a",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "engines": {

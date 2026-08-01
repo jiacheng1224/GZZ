@@ -85,6 +85,8 @@ importers:
         specifier: 4.92.0
         version: 4.92.0(@cloudflare/workers-types@5.20260730.1)
 
+  packages/game-content: {}
+
   packages/game-core: {}
 
 packages:

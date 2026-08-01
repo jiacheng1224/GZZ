@@ -44,39 +44,19 @@ import {
   type PublicRoomView,
   type ReplayArchive,
 } from "@/packages/game-core/src";
+import {
+  ACTIVE_CONTENT_PACK,
+  GAME_CONTENT_VERSION,
+  playerContentName,
+  tacticContentName,
+  troopColorName,
+  troopContentName,
+} from "@/packages/game-content/src";
 
-const COLOR_NAMES = {
-  red: "赤",
-  orange: "橙",
-  yellow: "黄",
-  green: "青",
-  blue: "蓝",
-  purple: "紫",
-} as const;
+const CONTENT = ACTIVE_CONTENT_PACK;
+const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const TACTIC_NAMES: Record<string, string> = {
-  "tactic-leader-alexander": "统帅·亚历山大",
-  "tactic-leader-darius": "统帅·大流士",
-  "tactic-companion-cavalry": "伙伴骑兵",
-  "tactic-shield-bearers": "持盾兵",
-  "tactic-fog": "迷雾",
-  "tactic-mud": "泥泞",
-  "tactic-scout": "侦察",
-  "tactic-redeploy": "重新部署",
-  "tactic-deserter": "逃兵",
-  "tactic-traitor": "叛徒",
-};
-
-const PHASE_NAMES: Record<GamePhase, string> = {
-  setup: "整备",
-  "play-card": "部署卡牌",
-  "resolve-tactic": "执行战术",
-  "optional-claims": "宣告战线",
-  "draw-card": "补充手牌",
-  finished: "对局结束",
-};
-
-const APP_VERSION = "2.0.0-r6.rc1";
+const APP_VERSION = "2.1.0-m16a";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -94,16 +74,15 @@ const RULE_ERROR_MESSAGES: Partial<Record<string, string>> = {
   NOT_ACTIVE_PLAYER: "现在不是该玩家的行动回合。",
   WRONG_PHASE: "当前阶段不能执行这个操作，请按行动面板提示继续。",
   CARD_NOT_IN_HAND: "这张牌不在当前玩家手中。",
-  FLAG_ALREADY_CLAIMED: "该战线已经被占领，不能继续部署或宣告。",
-  FLAG_FULL: "该侧阵型已经满员，请选择其他战线。",
+  FLAG_ALREADY_CLAIMED: "该烽垒已经被占领，不能继续列阵或夺垒。",
+  FLAG_FULL: "该侧兵列已经满员，请选择其他烽垒。",
   CLAIM_NOT_PROVEN: "当前阵型还不能证明必胜；对手仍可能完成更强阵型。",
-  TACTIC_LIMIT_REACHED: "你的战术牌使用数已领先，暂时不能再打战术牌。",
+  TACTIC_LIMIT_REACHED: "你的谋策牌使用数已领先，暂时不能再打谋策牌。",
   LEADER_LIMIT_REACHED: "每名玩家一局只能使用一张统帅牌。",
-  NO_LEGAL_TACTIC_TARGET: "场上没有符合这张战术牌要求的目标。",
+  NO_LEGAL_TACTIC_TARGET: "场上没有符合这张谋策牌要求的目标。",
 };
 
-const playerName = (player: PlayerId) =>
-  player === "player-one" ? "玄甲" : "朱羽";
+const playerName = playerContentName;
 
 const otherPlayer = (player: PlayerId): PlayerId =>
   player === "player-one" ? "player-two" : "player-one";
@@ -152,20 +131,15 @@ function cardView(cardId: CardId) {
   const tactic = getTacticCard(cardId);
   if (tactic) {
     return {
-      title: TACTIC_NAMES[cardId] ?? tactic.name,
-      subtitle:
-        tactic.category === "morale"
-          ? "士气"
-          : tactic.category === "environment"
-            ? "环境"
-            : "诡计",
+      title: tacticContentName(cardId) ?? tactic.name,
+      subtitle: CONTENT.tacticCategories[tactic.category],
       className: `tactic ${tactic.category}`,
     };
   }
   const troop = parseTroopCard(cardId);
   return {
-    title: `${COLOR_NAMES[troop.color]} ${troop.value}`,
-    subtitle: "部队",
+    title: `${troopContentName(troop.color)} ${troop.value}`,
+    subtitle: `${troopColorName(troop.color)}色${CONTENT.terms.troop}`,
     className: `troop ${troop.color}`,
   };
 }
@@ -175,21 +149,21 @@ function eventText(event: ProjectedGameEvent): string {
     return `${playerName(event.firstPlayer)} 先手`;
   if (event.type === "turn-started")
     return `第 ${event.turn} 回合 · ${playerName(event.player)}`;
-  if (event.type === "troop-played")
-    return `部队部署至战线 ${event.flagId + 1}`;
+  if (event.type === "troop-played") return `阵兵列于烽垒 ${event.flagId + 1}`;
   if (event.type === "tactic-played")
-    return `打出 ${TACTIC_NAMES[event.cardId] ?? event.cardId}`;
+    return `打出 ${tacticContentName(event.cardId) ?? event.cardId}`;
   if (event.type === "flag-claimed")
-    return `${playerName(event.player)} 占领战线 ${event.flagId + 1}`;
+    return `${playerName(event.player)} 夺得烽垒 ${event.flagId + 1}`;
   if (event.type === "card-drawn")
-    return `从${event.pile === "troop" ? "部队" : "战术"}牌堆补牌`;
-  if (event.type === "scout-drawn") return `侦察抽取 ${event.cardCount} 张牌`;
+    return `从${CONTENT.piles[event.pile].name}牌堆补牌`;
+  if (event.type === "scout-drawn")
+    return `${tacticContentName("tactic-scout")}抽取 ${event.cardCount} 张牌`;
   if (event.type === "scout-returned")
-    return `侦察放回 ${event.cardCount} 张牌`;
+    return `${tacticContentName("tactic-scout")}放回 ${event.cardCount} 张牌`;
   if (event.type === "field-card-moved")
     return event.discarded ? "场上牌被弃置" : "场上牌完成移动";
-  if (event.type === "tactic-cancelled") return "取消战术";
-  if (event.type === "tactic-resolved") return "战术结算完成";
+  if (event.type === "tactic-cancelled") return "取消谋策";
+  if (event.type === "tactic-resolved") return "谋策结算完成";
   return `${playerName(event.player)} 获得胜利`;
 }
 
@@ -253,33 +227,33 @@ type SavedGame = {
 const FORMATION_EXAMPLES = [
   {
     rank: 1,
-    name: "楔形阵",
-    rule: "同色且连续",
-    cards: ["赤 3", "赤 4", "赤 5"],
+    name: CONTENT.formations.wedge.name,
+    rule: CONTENT.formations.wedge.description,
+    cards: ["燧锋 3", "燧锋 4", "燧锋 5"],
   },
   {
     rank: 2,
-    name: "方阵",
-    rule: "三张同点数",
-    cards: ["赤 8", "蓝 8", "青 8"],
+    name: CONTENT.formations.phalanx.name,
+    rule: CONTENT.formations.phalanx.description,
+    cards: ["燧锋 8", "沧澜 8", "青陌 8"],
   },
   {
     rank: 3,
-    name: "营阵",
-    rule: "三张同色",
-    cards: ["蓝 2", "蓝 7", "蓝 9"],
+    name: CONTENT.formations.battalion.name,
+    rule: CONTENT.formations.battalion.description,
+    cards: ["沧澜 2", "沧澜 7", "沧澜 9"],
   },
   {
     rank: 4,
-    name: "散兵线",
-    rule: "连续但不同色",
-    cards: ["赤 4", "蓝 5", "青 6"],
+    name: CONTENT.formations.skirmish.name,
+    rule: CONTENT.formations.skirmish.description,
+    cards: ["燧锋 4", "沧澜 5", "青陌 6"],
   },
   {
     rank: 5,
-    name: "军团",
-    rule: "其他组合，比点数和",
-    cards: ["赤 2", "蓝 5", "青 9"],
+    name: CONTENT.formations.host.name,
+    rule: CONTENT.formations.host.description,
+    cards: ["燧锋 2", "沧澜 5", "青陌 9"],
   },
 ] as const;
 
@@ -312,7 +286,7 @@ function RulesDrawer({
         <section>
           <h3>目标与回合</h3>
           <p>
-            率先占领连续三条战线，或任意五条战线，即刻获胜。每回合依次部署一张牌、宣告可占战线，再从一个牌堆补一张牌。
+            率先夺得连续三座烽垒，或任意五座烽垒，即刻获胜。每回合依次列下一张牌、争取可夺烽垒，再从一个牌堆补一张牌。
           </p>
         </section>
 
@@ -344,16 +318,17 @@ function RulesDrawer({
 
         <section className="rules-grid">
           <div>
-            <h3>宣告战线</h3>
+            <h3>{CONTENT.terms.claim}规则</h3>
             <p>
-              己方阵型完成且强于对手时可以宣告；若对手未完成，必须用所有公开可用牌证明其不可能反超。
+              己方兵列完成且强于对手时可以夺垒；若对手未完成，必须用所有公开可用牌证明其不可能反超。
             </p>
           </div>
           <div>
-            <h3>战术术语</h3>
+            <h3>{CONTENT.terms.tactic}术语</h3>
             <p>
-              <b>士气</b>加入阵型；<b>环境</b>改变整条战线；<b>诡计</b>
-              执行一次即时效果。
+              <b>{CONTENT.tacticCategories.morale}</b>加入阵型；
+              <b>{CONTENT.tacticCategories.environment}</b>改变整座烽垒；
+              <b>{CONTENT.tacticCategories.guile}</b>执行一次即时效果。
             </p>
           </div>
         </section>
@@ -371,20 +346,20 @@ function TutorialCoach({
 }) {
   const firstFlagClaimed = Boolean(state.flags[0].owner);
   let step = 1;
-  let title = "选择赤 10";
-  let detail = "战线 1 已有赤 8、赤 9。选择赤 10，可以组成最强的楔形阵。";
+  let title = "选择燧锋 10";
+  let detail = "烽垒 1 已有燧锋 8、燧锋 9。选择燧锋 10，可以组成最强的贯锋。";
 
   if (state.phase === "play-card" && selectedCard === "troop-red-10") {
-    title = "部署到战线 1";
-    detail = "战线 1 已高亮。点击其下方的“部署于此”。";
+    title = "部署到烽垒 1";
+    detail = "烽垒 1 已高亮。点击其下方的“部署于此”。";
   } else if (state.phase === "optional-claims" && !firstFlagClaimed) {
     step = 2;
-    title = "宣告战线 1";
-    detail = "赤 8、9、10 是最高点数楔形阵；点击战线 1 下方的“宣告”。";
+    title = "争取烽垒 1";
+    detail = "燧锋 8、9、10 是最高点数贯锋；点击烽垒 1 下方的“夺垒”。";
   } else if (firstFlagClaimed && state.turn === 1) {
     step = 3;
-    title = "首面旗帜已占领";
-    detail = "结束宣告，再从部队牌堆补一张牌，完成这个教学回合。";
+    title = "首座烽垒已占领";
+    detail = "结束争取，再从阵兵牌堆补一张牌，完成这个教学回合。";
   } else if (firstFlagClaimed) {
     step = 3;
     title = "教学目标达成";
@@ -443,7 +418,7 @@ function ExperienceSettings({
             />
             <span>
               <strong>音效反馈</strong>
-              <small>为部署、战术、占旗和胜利播放轻量提示音。</small>
+              <small>为列阵、谋策、夺垒和胜利播放轻量提示音。</small>
             </span>
           </label>
           <label>
@@ -503,12 +478,12 @@ function SetupScreen({
     <main className="setup-shell" data-ready={ready} data-testid="game-setup">
       <section className="setup-card">
         <div className="setup-intro">
-          <p className="eyebrow">R6 · ONLINE ROOM BETA</p>
+          <p className="eyebrow">M16-A · ORIGINAL CONTENT</p>
           <span className="setup-emblem" aria-hidden="true">
-            阵
+            {CONTENT.brand.emblem}
           </span>
-          <h1>古战阵</h1>
-          <p>两军隔九线列阵，以连续三线或任意五线夺取胜利。</p>
+          <h1>{CONTENT.brand.name}</h1>
+          <p>{CONTENT.brand.description}</p>
         </div>
 
         <form
@@ -529,7 +504,7 @@ function SetupScreen({
               />
               <span>
                 <strong>标准对局</strong>
-                <small>60 张部队牌 + 10 张战术牌，完整规则</small>
+                <small>60 张阵兵牌 + 10 张谋策牌，完整规则</small>
               </span>
             </label>
             <label className={mode === "basic" ? "selected" : ""}>
@@ -541,7 +516,7 @@ function SetupScreen({
               />
               <span>
                 <strong>基础对局</strong>
-                <small>仅使用部队牌，适合首次熟悉阵型与占旗</small>
+                <small>仅使用阵兵牌，适合首次熟悉兵列与夺垒</small>
               </span>
             </label>
             <label className={mode === "tutorial" ? "selected" : ""}>
@@ -553,7 +528,7 @@ function SetupScreen({
               />
               <span>
                 <strong>引导对局</strong>
-                <small>固定无战术局面，用三步完成第一面旗帜</small>
+                <small>固定无谋策局面，用三步夺得第一座烽垒</small>
               </span>
             </label>
             <label className={mode === "solo" ? "selected" : ""}>
@@ -565,7 +540,10 @@ function SetupScreen({
               />
               <span>
                 <strong>单人对 AI</strong>
-                <small>你执玄甲，可选择简单或标准朱羽 AI</small>
+                <small>
+                  你执{playerName("player-one")}，可选择简单或标准
+                  {playerName("player-two")} AI
+                </small>
               </span>
             </label>
           </fieldset>
@@ -591,7 +569,7 @@ function SetupScreen({
               </div>
               <small>
                 {aiDifficulty === "standard"
-                  ? "评估威胁、连续战线、阵型潜力与战术价值。"
+                  ? "评估威胁、连续烽垒、兵列潜力与谋策价值。"
                   : "使用合法动作与基础成型启发，适合首次对战。"}
               </small>
             </fieldset>
@@ -615,7 +593,9 @@ function SetupScreen({
                 </label>
               ))}
             </div>
-            {mode === "solo" && <small>单人模式固定由玄甲玩家先手。</small>}
+            {mode === "solo" && (
+              <small>单人模式固定由{playerName("player-one")}玩家先手。</small>
+            )}
           </fieldset>
 
           <label className="seed-field" htmlFor="game-seed">
@@ -679,24 +659,27 @@ type OnlinePayload = {
 
 function onlineCommandLabel(command: GameCommand): string {
   if (command.type === "play-tactic")
-    return `打出 ${TACTIC_NAMES[command.cardId] ?? command.cardId}`;
+    return `打出 ${tacticContentName(command.cardId) ?? command.cardId}`;
   if (command.type === "choose-scout-draw")
-    return `侦察抽牌：${command.piles.map((pile) => (pile === "troop" ? "部" : "术")).join("/")}`;
+    return `${tacticContentName("tactic-scout")}抽牌：${command.piles
+      .map((pile) => CONTENT.piles[pile].shortName)
+      .join("/")}`;
   if (command.type === "choose-scout-return")
-    return `侦察放回：${command.cardIds.map((cardId) => cardView(cardId).title).join("、")}`;
+    return `${tacticContentName("tactic-scout")}放回：${command.cardIds.map((cardId) => cardView(cardId).title).join("、")}`;
   if (command.type === "choose-tactic-source")
-    return `选择战线 ${command.flagId + 1} 的${cardView(command.cardId).title}`;
+    return `选择烽垒 ${command.flagId + 1} 的${cardView(command.cardId).title}`;
   if (command.type === "choose-tactic-destination")
     return command.discard
       ? "弃置所选场上牌"
-      : `移动至战线 ${(command.flagId ?? 0) + 1}`;
+      : `移动至烽垒 ${(command.flagId ?? 0) + 1}`;
   if (command.type === "draw-card")
-    return `从${command.pile === "troop" ? "部队" : "战术"}牌堆补牌`;
+    return `从${CONTENT.piles[command.pile].name}牌堆补牌`;
   if (command.type === "pass-claims") return "结束宣告";
   if (command.type === "skip-play") return "跳过部署";
-  if (command.type === "cancel-tactic") return "取消战术";
+  if (command.type === "cancel-tactic") return "取消谋策";
   if (command.type === "end-turn") return "结束回合";
-  if (command.type === "claim-flag") return `宣告战线 ${command.flagId + 1}`;
+  if (command.type === "claim-flag")
+    return `${CONTENT.terms.claim}${CONTENT.terms.flag} ${command.flagId + 1}`;
   return `部署 ${cardView(command.cardId).title}`;
 }
 
@@ -980,7 +963,7 @@ function OnlineRoom({
           className="online-card online-entry"
           data-testid="online-entry"
         >
-          <p className="eyebrow">R6 · ONLINE BETA</p>
+          <p className="eyebrow">M16-A · ONLINE</p>
           <h1>在线房间</h1>
           <p>创建六位邀请码，或加入另一位玩家已经创建的房间。</p>
           <button
@@ -1046,7 +1029,7 @@ function OnlineRoom({
       <section className="online-card online-lobby">
         <header>
           <div>
-            <p className="eyebrow">R6 · M15-B2 LIVE SYNC</p>
+            <p className="eyebrow">M16-A · LIVE SYNC</p>
             <h1>房间 {room.inviteCode}</h1>
           </div>
           <span
@@ -1130,7 +1113,7 @@ function OnlineRoom({
                       }
                       type="button"
                     >
-                      <span>战线 {flag.id + 1}</span>
+                      <span>烽垒 {flag.id + 1}</span>
                       <strong>
                         {flag.owner
                           ? `${playerName(flag.owner)}占领`
@@ -1278,10 +1261,15 @@ function AiThinkingScreen({
         <span className="handoff-emblem player-two" aria-hidden="true">
           谋
         </span>
-        <p>朱羽 · {AI_VERSION}</p>
+        <p>
+          {playerName("player-two")} · {AI_VERSION}
+        </p>
         <h1>对手正在推演</h1>
         <p className="handoff-copy">{notice}</p>
-        <small>AI 仅接收朱羽 PlayerView · 不读取牌堆顺序或玄甲手牌</small>
+        <small>
+          AI 仅接收{playerName("player-two")} PlayerView · 不读取牌堆顺序或
+          {playerName("player-one")}手牌
+        </small>
       </section>
     </main>
   );
@@ -1419,7 +1407,7 @@ function ReplayDrawer({
         </section>
 
         <section>
-          <h3>公开战线</h3>
+          <h3>公开烽垒</h3>
           <div className="replay-flags">
             {publicView.flags.map((flag) => (
               <span className={flag.owner ?? "unclaimed"} key={flag.id}>
@@ -1513,15 +1501,15 @@ function GameResult({
         </strong>
         <div className="result-stats">
           <div>
-            <span>制胜战线</span>
+            <span>制胜烽垒</span>
             <b>{summary.winningFlags.map((flag) => flag + 1).join(" · ")}</b>
           </div>
           <div>
-            <span>玄甲占领</span>
+            <span>{playerName("player-one")}占领</span>
             <b>{summary.claimedFlags["player-one"].length}</b>
           </div>
           <div>
-            <span>朱羽占领</span>
+            <span>{playerName("player-two")}占领</span>
             <b>{summary.claimedFlags["player-two"].length}</b>
           </div>
         </div>
@@ -1537,7 +1525,7 @@ function GameResult({
             <div className="review-row review-header" role="row">
               <span role="columnheader">阵营</span>
               <span role="columnheader">部署</span>
-              <span role="columnheader">战术</span>
+              <span role="columnheader">谋策</span>
               <span role="columnheader">补牌</span>
               <span role="columnheader">占旗</span>
             </div>
@@ -1558,14 +1546,14 @@ function GameResult({
               <li>
                 <span>首旗</span>
                 {playerName(review.firstClaim.player)}在事件{" "}
-                {review.firstClaim.eventIndex} 占领战线{" "}
+                {review.firstClaim.eventIndex} 夺得烽垒{" "}
                 {review.firstClaim.flagId + 1}
               </li>
             )}
             <li>
               <span>胜负手</span>
               {playerName(review.decisiveClaim.player)}在事件{" "}
-              {review.decisiveClaim.eventIndex} 拿下战线{" "}
+              {review.decisiveClaim.eventIndex} 拿下烽垒{" "}
               {review.decisiveClaim.flagId + 1}
             </li>
             <li>
@@ -1808,7 +1796,7 @@ export function GameTable() {
         const next = applyCommand(state, decision.command);
         setState(next);
         setReplayCommands((current) => [...current, decision.command]);
-        setNotice(`朱羽 AI：${decision.reason}`);
+        setNotice(`${playerName("player-two")} AI：${decision.reason}`);
         if (soundEnabled)
           playFeedbackSound(commandSound(decision.command, next));
         if (next.activePlayer !== "player-two") setRevealedPlayer(undefined);
@@ -1867,7 +1855,7 @@ export function GameTable() {
       return;
     }
     setSelectedCard((current) => (current === cardId ? undefined : cardId));
-    setNotice("已选牌；高亮战线均为合法目标。");
+    setNotice("已选牌；高亮烽垒均为合法目标。");
   };
 
   const playSelectedGuile = () => {
@@ -2056,15 +2044,16 @@ export function GameTable() {
       <main className="game-shell" data-ready={ready}>
         <header className="game-header">
           <div className="brand-lockup">
-            <p className="eyebrow">R6 · ONLINE RC1</p>
-            <h1>古战阵</h1>
-            <p>九线争锋 · 本地规则原型</p>
+            <p className="eyebrow">M16-A · CONTENT PACK</p>
+            <h1>{CONTENT.brand.name}</h1>
+            <p>{CONTENT.brand.subtitle} · 原创内容工作版</p>
           </div>
           <div className="game-meta" aria-label="对局状态">
             <span>桌面 {APP_VERSION}</span>
             <strong>{PHASE_NAMES[view.phase]}</strong>
             <span>
-              核心 {GAME_CORE_VERSION} · 第 {view.turn} 回合
+              核心 {GAME_CORE_VERSION} · 内容 {GAME_CONTENT_VERSION} · 第{" "}
+              {view.turn} 回合
             </span>
           </div>
           <div className="new-game-form">
@@ -2115,14 +2104,21 @@ export function GameTable() {
             <small>{notice}</small>
           </div>
           <div className="deck-counters">
-            <span>部队牌堆 {view.decks.troop}</span>
-            <span>战术牌堆 {view.decks.tactic}</span>
+            <span>
+              {CONTENT.piles.troop.name}牌堆 {view.decks.troop}
+            </span>
+            <span>
+              {CONTENT.piles.tactic.name}牌堆 {view.decks.tactic}
+            </span>
             <span>对手手牌 {view.players[opponent].handCount}</span>
           </div>
         </section>
 
         <div className="game-layout">
-          <section className="battlefield-panel" aria-label="九条战线">
+          <section
+            className="battlefield-panel"
+            aria-label={CONTENT.terms.flags}
+          >
             <div
               className="opponent-rack"
               aria-label={`${playerName(opponent)}手牌`}
@@ -2186,7 +2182,7 @@ export function GameTable() {
                       </div>
 
                       <div className="flag-marker">
-                        <span>战线 {flag.id + 1}</span>
+                        <span>烽垒 {flag.id + 1}</span>
                         <strong>
                           {flag.owner
                             ? `${playerName(flag.owner)}占领`
@@ -2195,7 +2191,7 @@ export function GameTable() {
                         {flag.environment.length > 0 && (
                           <small>
                             {flag.environment
-                              .map((id) => TACTIC_NAMES[id])
+                              .map((id) => tacticContentName(id))
                               .join(" · ")}
                           </small>
                         )}
@@ -2293,10 +2289,10 @@ export function GameTable() {
               <p className="section-label">当前阶段</p>
               <h2>{PHASE_NAMES[view.phase]}</h2>
               <p className="command-help">
-                {view.phase === "play-card" && "选择手牌，然后选择高亮战线。"}
-                {view.phase === "resolve-tactic" && "按战术提示完成当前选择。"}
+                {view.phase === "play-card" && "选择手牌，然后选择高亮烽垒。"}
+                {view.phase === "resolve-tactic" && "按谋策提示完成当前选择。"}
                 {view.phase === "optional-claims" &&
-                  "宣告可占战线，或结束宣告。"}
+                  "争取可夺烽垒，或结束争取。"}
                 {view.phase === "draw-card" && "选择一个牌堆补充手牌。"}
                 {view.phase === "finished" && "本局已经结束。"}
               </p>
@@ -2309,7 +2305,10 @@ export function GameTable() {
                   onClick={playSelectedGuile}
                   type="button"
                 >
-                  打出{selectedCard ? TACTIC_NAMES[selectedCard] : "战术"}
+                  打出
+                  {selectedCard
+                    ? tacticContentName(selectedCard)
+                    : CONTENT.terms.tactic}
                 </button>
               )}
               {view.legalCommands
@@ -2321,9 +2320,9 @@ export function GameTable() {
                       onClick={() => execute(command)}
                       type="button"
                     >
-                      侦察：
+                      {tacticContentName("tactic-scout")}：
                       {command.piles
-                        .map((pile) => (pile === "troop" ? "部" : "术"))
+                        .map((pile) => CONTENT.piles[pile].shortName)
                         .join(" / ")}
                     </button>
                   ) : null,
@@ -2392,7 +2391,7 @@ export function GameTable() {
                       onClick={() => execute(command)}
                       type="button"
                     >
-                      从{command.pile === "troop" ? "部队" : "战术"}牌堆补牌
+                      从{CONTENT.piles[command.pile].name}牌堆补牌
                     </button>
                   ) : null,
                 )}
@@ -2417,14 +2416,14 @@ export function GameTable() {
                   }
                   type="button"
                 >
-                  取消战术
+                  取消谋策
                 </button>
               )}
             </div>
 
             <div className="discard-summary">
-              <span>部队弃牌 {view.troopDiscard.length}</span>
-              <span>战术弃牌 {view.tacticDiscard.length}</span>
+              <span>阵兵弃牌 {view.troopDiscard.length}</span>
+              <span>谋策弃牌 {view.tacticDiscard.length}</span>
             </div>
 
             <div className="event-log">
