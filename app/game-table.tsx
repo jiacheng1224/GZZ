@@ -8,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
   type DragEvent,
+  type CSSProperties,
 } from "react";
 import {
   AI_VERSION,
@@ -52,14 +53,21 @@ import {
   troopColorName,
   troopContentName,
 } from "@/packages/game-content/src";
+import {
+  createContentReviewExport,
+  isCompleteContentReview,
+  serializeContentReview,
+  type ContentReviewDraft,
+} from "@/packages/game-content/src/research";
 
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.1.0-m16a";
+const APP_VERSION = "2.2.0-m16b";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
+const CONTENT_REVIEW_KEY = "guzhanzhen.content-review.v1";
 
 type MatchMode = "standard" | "basic" | "tutorial" | "solo";
 
@@ -134,6 +142,7 @@ function cardView(cardId: CardId) {
       title: tacticContentName(cardId) ?? tactic.name,
       subtitle: CONTENT.tacticCategories[tactic.category],
       className: `tactic ${tactic.category}`,
+      accent: CONTENT.tacticCategoryThemes[tactic.category].accent,
     };
   }
   const troop = parseTroopCard(cardId);
@@ -141,6 +150,7 @@ function cardView(cardId: CardId) {
     title: `${troopContentName(troop.color)} ${troop.value}`,
     subtitle: `${troopColorName(troop.color)}色${CONTENT.terms.troop}`,
     className: `troop ${troop.color}`,
+    accent: CONTENT.troopColors[troop.color].accent,
   };
 }
 
@@ -176,7 +186,10 @@ function CardFace({
 }) {
   const card = cardView(cardId);
   return (
-    <span className={`card-face ${card.className} ${compact ? "compact" : ""}`}>
+    <span
+      className={`card-face ${card.className} ${compact ? "compact" : ""}`}
+      style={{ "--card-accent": card.accent } as CSSProperties}
+    >
       <strong>{card.title}</strong>
       <small>{card.subtitle}</small>
     </span>
@@ -441,6 +454,251 @@ function ExperienceSettings({
   );
 }
 
+const EMPTY_CONTENT_REVIEW: ContentReviewDraft = {
+  confusingTerm: "",
+  notes: "",
+};
+
+function ContentArchive({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<ContentReviewDraft>(EMPTY_CONTENT_REVIEW);
+  const [feedbackNotice, setFeedbackNotice] =
+    useState("完成三项评分后可保存并导出。");
+
+  useEffect(() => {
+    if (!open) return;
+    let savedResponse: ContentReviewDraft | undefined;
+    try {
+      const raw = window.localStorage.getItem(CONTENT_REVIEW_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { response?: ContentReviewDraft };
+      savedResponse = saved.response;
+    } catch {
+      window.localStorage.removeItem(CONTENT_REVIEW_KEY);
+    }
+    if (!savedResponse) return;
+    const timer = window.setTimeout(() => setDraft(savedResponse), 0);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  if (!open) return null;
+
+  const updateDraft = <Key extends keyof ContentReviewDraft>(
+    key: Key,
+    value: ContentReviewDraft[Key],
+  ) => setDraft((current) => ({ ...current, [key]: value }));
+
+  const saveReview = () => {
+    if (!isCompleteContentReview(draft)) {
+      setFeedbackNotice("请先完成三项 1–5 分评分。");
+      return undefined;
+    }
+    const review = createContentReviewExport(draft);
+    window.localStorage.setItem(CONTENT_REVIEW_KEY, JSON.stringify(review));
+    setFeedbackNotice("反馈已保存在当前浏览器。可继续修改并重新导出。");
+    return review;
+  };
+
+  const exportReview = () => {
+    const review = saveReview();
+    if (!review) return;
+    const url = URL.createObjectURL(
+      new Blob([serializeContentReview(review)], { type: "application/json" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${CONTENT.research.roundId}-${review.submittedAt.slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  return (
+    <div className="rules-backdrop" data-testid="content-archive">
+      <aside
+        aria-label="原创内容档案"
+        aria-modal="true"
+        className="rules-drawer content-archive"
+        role="dialog"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">M16-B · WORLD & RESEARCH</p>
+            <h2>原创内容档案</h2>
+          </div>
+          <button aria-label="关闭原创内容档案" onClick={onClose} type="button">
+            关闭
+          </button>
+        </header>
+
+        <section className="world-brief">
+          <p className="section-label">澜原纪事</p>
+          <h3>{CONTENT.brand.fullTitle}</h3>
+          <p>{CONTENT.brand.setting}</p>
+          <div className="world-pillars" aria-label="主题支柱">
+            <span>九垒传讯</span>
+            <span>六旌列阵</span>
+            <span>谋策改势</span>
+          </div>
+        </section>
+
+        <section>
+          <p className="section-label">六旌色谱</p>
+          <div className="banner-codex">
+            {CONTENT.ruleset.troopColors.map((color) => {
+              const troop = CONTENT.troopColors[color];
+              return (
+                <article
+                  key={color}
+                  style={{ "--family-accent": troop.accent } as CSSProperties}
+                >
+                  <span aria-hidden="true">{troop.sigil}</span>
+                  <div>
+                    <strong>{troop.name}</strong>
+                    <small>{troop.colorName}旌</small>
+                    <p>{troop.description}</p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section>
+          <p className="section-label">谋策谱系</p>
+          <div className="tactic-codex">
+            {(
+              Object.keys(CONTENT.tacticCategories) as Array<
+                keyof typeof CONTENT.tacticCategories
+              >
+            ).map((category) => (
+              <article
+                key={category}
+                style={
+                  {
+                    "--family-accent":
+                      CONTENT.tacticCategoryThemes[category].accent,
+                  } as CSSProperties
+                }
+              >
+                <span aria-hidden="true">
+                  {CONTENT.tacticCategoryThemes[category].sigil}
+                </span>
+                <div>
+                  <strong>{CONTENT.tacticCategories[category]}</strong>
+                  <p>
+                    {CONTENT.ruleset.tacticIds
+                      .filter((id) => getTacticCard(id)?.category === category)
+                      .map((id) => CONTENT.tactics[id].name)
+                      .join(" · ")}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <form
+          className="content-review-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            saveReview();
+          }}
+        >
+          <div>
+            <p className="section-label">{CONTENT.research.roundId}</p>
+            <h3>{CONTENT.research.title}</h3>
+            <p>{CONTENT.research.introduction}</p>
+          </div>
+
+          {CONTENT.research.dimensions.map((dimension) => (
+            <fieldset key={dimension.id}>
+              <legend>{dimension.label}</legend>
+              <p>{dimension.prompt}</p>
+              <div className="score-options">
+                {([1, 2, 3, 4, 5] as const).map((score) => (
+                  <label key={score}>
+                    <input
+                      checked={draft[dimension.id] === score}
+                      name={dimension.id}
+                      onChange={() => updateDraft(dimension.id, score)}
+                      type="radio"
+                    />
+                    {score}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+
+          <label>
+            <span>最容易记住的旌团</span>
+            <select
+              onChange={(event) =>
+                updateDraft(
+                  "memorableTroop",
+                  event.target.value
+                    ? (event.target
+                        .value as ContentReviewDraft["memorableTroop"])
+                    : undefined,
+                )
+              }
+              value={draft.memorableTroop ?? ""}
+            >
+              <option value="">暂不选择</option>
+              {CONTENT.ruleset.troopColors.map((color) => (
+                <option key={color} value={color}>
+                  {CONTENT.troopColors[color].name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>最难理解的术语</span>
+            <input
+              maxLength={80}
+              onChange={(event) =>
+                updateDraft("confusingTerm", event.target.value)
+              }
+              placeholder="若没有，可留空"
+              type="text"
+              value={draft.confusingTerm}
+            />
+          </label>
+
+          <label>
+            <span>其他观察</span>
+            <textarea
+              maxLength={500}
+              onChange={(event) => updateDraft("notes", event.target.value)}
+              placeholder="哪些名称、颜色或设定最有辨识度？"
+              rows={4}
+              value={draft.notes}
+            />
+          </label>
+
+          <div className="content-review-actions">
+            <button type="submit">保存到本机</button>
+            <button onClick={exportReview} type="button">
+              导出反馈 JSON
+            </button>
+          </div>
+          <p aria-live="polite" className="content-review-notice">
+            {feedbackNotice}
+          </p>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
 function SetupScreen({
   seed,
   mode,
@@ -457,6 +715,7 @@ function SetupScreen({
   onOpenRules,
   onOpenSettings,
   onOpenOnline,
+  onOpenContent,
 }: {
   seed: string;
   mode: MatchMode;
@@ -473,12 +732,13 @@ function SetupScreen({
   onOpenRules: () => void;
   onOpenSettings: () => void;
   onOpenOnline: () => void;
+  onOpenContent: () => void;
 }) {
   return (
     <main className="setup-shell" data-ready={ready} data-testid="game-setup">
       <section className="setup-card">
         <div className="setup-intro">
-          <p className="eyebrow">M16-A · ORIGINAL CONTENT</p>
+          <p className="eyebrow">M16-B · WORLD & RESEARCH</p>
           <span className="setup-emblem" aria-hidden="true">
             {CONTENT.brand.emblem}
           </span>
@@ -621,6 +881,9 @@ function SetupScreen({
             </button>
             <button disabled={!ready} onClick={onOpenSettings} type="button">
               体验设置
+            </button>
+            <button disabled={!ready} onClick={onOpenContent} type="button">
+              原创内容档案
             </button>
             <button disabled={!ready} onClick={onOpenOnline} type="button">
               在线房间
@@ -963,7 +1226,7 @@ function OnlineRoom({
           className="online-card online-entry"
           data-testid="online-entry"
         >
-          <p className="eyebrow">M16-A · ONLINE</p>
+          <p className="eyebrow">M16-B · ONLINE</p>
           <h1>在线房间</h1>
           <p>创建六位邀请码，或加入另一位玩家已经创建的房间。</p>
           <button
@@ -1029,7 +1292,7 @@ function OnlineRoom({
       <section className="online-card online-lobby">
         <header>
           <div>
-            <p className="eyebrow">M16-A · LIVE SYNC</p>
+            <p className="eyebrow">M16-B · LIVE SYNC</p>
             <h1>房间 {room.inviteCode}</h1>
           </div>
           <span
@@ -1596,6 +1859,7 @@ export function GameTable() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [replayOpen, setReplayOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -1932,6 +2196,9 @@ export function GameTable() {
       soundEnabled={soundEnabled}
     />
   );
+  const contentDrawer = (
+    <ContentArchive onClose={() => setContentOpen(false)} open={contentOpen} />
+  );
 
   if (onlineOpen) {
     return (
@@ -1960,6 +2227,7 @@ export function GameTable() {
           onOpenRules={() => setRulesOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenOnline={() => setOnlineOpen(true)}
+          onOpenContent={() => setContentOpen(true)}
           onResume={() => setShowSetup(false)}
           onSeedChange={setSeed}
           onStart={() =>
@@ -1974,6 +2242,7 @@ export function GameTable() {
         />
         <RulesDrawer onClose={() => setRulesOpen(false)} open={rulesOpen} />
         {settingsDrawer}
+        {contentDrawer}
       </>
     );
   }
@@ -2044,7 +2313,7 @@ export function GameTable() {
       <main className="game-shell" data-ready={ready}>
         <header className="game-header">
           <div className="brand-lockup">
-            <p className="eyebrow">M16-A · CONTENT PACK</p>
+            <p className="eyebrow">M16-B · WORLD & RESEARCH</p>
             <h1>{CONTENT.brand.name}</h1>
             <p>{CONTENT.brand.subtitle} · 原创内容工作版</p>
           </div>
@@ -2085,6 +2354,13 @@ export function GameTable() {
               type="button"
             >
               体验设置
+            </button>
+            <button
+              disabled={!ready}
+              onClick={() => setContentOpen(true)}
+              type="button"
+            >
+              内容档案
             </button>
             <button
               className="handoff-now"
@@ -2454,6 +2730,7 @@ export function GameTable() {
         open={replayOpen}
       />
       {settingsDrawer}
+      {contentDrawer}
     </>
   );
 }

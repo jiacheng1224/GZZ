@@ -29,8 +29,8 @@ test("server-renders the M11 match setup without hand identities", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>烽垒九章 · 六旌竞势<\/title>/i);
-  assert.match(html, /M16-A · ORIGINAL CONTENT/);
-  assert.match(html, /2\.1\.0-m16a/);
+  assert.match(html, /M16-B · WORLD &amp; RESEARCH/);
+  assert.match(html, /2\.2\.0-m16b/);
   assert.match(html, /data-content-pack="beacon-ramparts-zh-cn"/);
   assert.match(html, /标准对局/);
   assert.match(html, /基础对局/);

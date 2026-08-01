@@ -1,6 +1,6 @@
 {
   "name": "@guzhanzhen/game-content",
-  "version": "0.1.0-m16a",
+  "version": "0.2.0-m16b",
   "private": true,
   "type": "module",
   "exports": {

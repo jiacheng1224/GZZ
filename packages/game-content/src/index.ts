@@ -9,7 +9,7 @@ import {
 } from "../../game-core/src";
 import { TROOP_COLORS } from "../../game-core/src/types";
 
-export const GAME_CONTENT_VERSION = "0.1.0-m16a";
+export const GAME_CONTENT_VERSION = "0.2.0-m16b";
 
 export type TacticId = (typeof TACTIC_IDS)[number];
 
@@ -38,12 +38,19 @@ export type ContentPack = Readonly<{
   }>;
   players: Readonly<Record<PlayerId, NamedEntry>>;
   troopColors: Readonly<
-    Record<TroopColor, NamedEntry & Readonly<{ colorName: string }>>
+    Record<
+      TroopColor,
+      NamedEntry &
+        Readonly<{ colorName: string; sigil: string; accent: string }>
+    >
   >;
   tactics: Readonly<Record<TacticId, NamedEntry>>;
   formations: Readonly<Record<FormationKind, NamedEntry>>;
   phases: Readonly<Record<GamePhase, string>>;
   tacticCategories: Readonly<Record<TacticCategory, string>>;
+  tacticCategoryThemes: Readonly<
+    Record<TacticCategory, Readonly<{ sigil: string; accent: string }>>
+  >;
   piles: Readonly<
     Record<DrawPile, Readonly<{ name: string; shortName: string }>>
   >;
@@ -57,6 +64,16 @@ export type ContentPack = Readonly<{
   theme: Readonly<{
     id: string;
     cssVariables: Readonly<Record<`--${string}`, string>>;
+  }>;
+  research: Readonly<{
+    roundId: string;
+    title: string;
+    introduction: string;
+    dimensions: readonly Readonly<{
+      id: "clarity" | "distinctiveness" | "themeFit";
+      label: string;
+      prompt: string;
+    }>[];
   }>;
   provenance: Readonly<{
     status: "original-working-draft";
@@ -99,31 +116,43 @@ export const BEACON_RAMPARTS_ZH_CN = {
     red: {
       name: "燧锋",
       colorName: "赤",
+      sigil: "燧",
+      accent: "#b84d3d",
       description: "以迅疾突进见长的赤色旌团。",
     },
     orange: {
       name: "丹烽",
       colorName: "橙",
+      sigil: "烽",
+      accent: "#c87537",
       description: "负责点燃与守护烽讯的橙色旌团。",
     },
     yellow: {
       name: "金衡",
       colorName: "黄",
+      sigil: "衡",
+      accent: "#c8a43b",
       description: "维持兵列节奏与秩序的黄色旌团。",
     },
     green: {
       name: "青陌",
       colorName: "青",
+      sigil: "陌",
+      accent: "#568263",
       description: "熟悉边地路径与伏势的青色旌团。",
     },
     blue: {
       name: "沧澜",
       colorName: "蓝",
+      sigil: "澜",
+      accent: "#4a7695",
       description: "善于迂回和远距协同的蓝色旌团。",
     },
     purple: {
       name: "夜枭",
       colorName: "紫",
+      sigil: "枭",
+      accent: "#7b5d8f",
       description: "在暮色中传递密令的紫色旌团。",
     },
   },
@@ -189,6 +218,11 @@ export const BEACON_RAMPARTS_ZH_CN = {
     environment: "地势",
     guile: "机变",
   },
+  tacticCategoryThemes: {
+    morale: { sigil: "令", accent: "#b84d3d" },
+    environment: { sigil: "势", accent: "#568263" },
+    guile: { sigil: "机", accent: "#7b5d8f" },
+  },
   piles: {
     troop: { name: "阵兵", shortName: "兵" },
     tactic: { name: "谋策", shortName: "策" },
@@ -216,6 +250,29 @@ export const BEACON_RAMPARTS_ZH_CN = {
       "--gold": "#d1aa5d",
       "--pine": "#4f7866",
     },
+  },
+  research: {
+    roundId: "m16-b-01",
+    title: "原创内容认知反馈",
+    introduction:
+      "请只根据当前页面中的名称、设定和视觉判断，不需要了解原型期名称。反馈保存在本机，可导出后汇总。",
+    dimensions: [
+      {
+        id: "clarity",
+        label: "术语清晰度",
+        prompt: "我能快速理解烽垒、阵兵、谋策与六旌之间的关系。",
+      },
+      {
+        id: "distinctiveness",
+        label: "识别独特性",
+        prompt: "名称与视觉形成了独立、容易记住的产品印象。",
+      },
+      {
+        id: "themeFit",
+        label: "主题契合度",
+        prompt: "架空边境、烽讯和兵列主题与策略玩法相互匹配。",
+      },
+    ],
   },
   provenance: {
     status: "original-working-draft",

@@ -58,4 +58,22 @@ describe("M16-A original content pack", () => {
       expect(troopContentName(color)).not.toBe(color);
     }
   });
+
+  it("provides a distinct sigil and valid accent for every visual family", () => {
+    const troopSigils = TROOP_COLORS.map(
+      (color) => ACTIVE_CONTENT_PACK.troopColors[color].sigil,
+    );
+    expect(new Set(troopSigils).size).toBe(TROOP_COLORS.length);
+    for (const color of TROOP_COLORS) {
+      expect(ACTIVE_CONTENT_PACK.troopColors[color].accent).toMatch(
+        /^#[0-9a-f]{6}$/i,
+      );
+    }
+    for (const theme of Object.values(
+      ACTIVE_CONTENT_PACK.tacticCategoryThemes,
+    )) {
+      expect(theme.sigil).toHaveLength(1);
+      expect(theme.accent).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
 });

@@ -50,7 +50,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -60,7 +61,8 @@ button {
 
 button:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
@@ -422,40 +424,17 @@ select:focus-visible {
   font-size: 0.72rem;
 }
 
-.card-face.red {
-  border-left: 5px solid #ad493a;
-}
-.card-face.orange {
-  border-left: 5px solid #c66f36;
-}
-.card-face.yellow {
-  border-left: 5px solid #c39f36;
-}
-.card-face.green {
-  border-left: 5px solid #527e5f;
-}
-.card-face.blue {
-  border-left: 5px solid #456e8a;
-}
-.card-face.purple {
-  border-left: 5px solid #755887;
+.card-face.troop {
+  border-left: 5px solid var(--card-accent);
 }
 .card-face.tactic {
   background: #292a25;
   color: #f0e4c6;
   border: 1px solid #9b8152;
+  border-top: 4px solid var(--card-accent);
 }
 .card-face.tactic small {
   color: #b7aa8b;
-}
-.card-face.morale {
-  border-top: 4px solid #b94835;
-}
-.card-face.environment {
-  border-top: 4px solid #587560;
-}
-.card-face.guile {
-  border-top: 4px solid #8a7193;
 }
 
 .hand-zone {
@@ -1190,6 +1169,186 @@ select:focus-visible {
   line-height: 1.55;
 }
 
+.content-archive {
+  width: min(820px, 100%);
+}
+
+.content-archive > section,
+.content-review-form {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.world-brief h3,
+.content-review-form h3 {
+  margin: 0 0 10px;
+  color: var(--paper);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1.45rem;
+}
+
+.world-pillars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.world-pillars span {
+  padding: 7px 10px;
+  border: 1px solid rgba(197, 161, 90, 0.34);
+  color: var(--gold);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.banner-codex {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.banner-codex article,
+.tactic-codex article {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--family-accent);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.banner-codex article > span,
+.tactic-codex article > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--family-accent), white 18%);
+  border-radius: 50%;
+  color: var(--family-accent);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 1.25rem;
+}
+
+.banner-codex strong,
+.tactic-codex strong {
+  color: var(--paper);
+  font-family: "Songti SC", "STSong", serif;
+}
+
+.banner-codex small {
+  margin-left: 8px;
+  color: var(--family-accent);
+  font-size: 0.64rem;
+}
+
+.banner-codex p,
+.tactic-codex p {
+  margin-top: 5px;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.tactic-codex {
+  display: grid;
+  gap: 9px;
+}
+
+.content-review-form {
+  display: grid;
+  gap: 18px;
+}
+
+.content-review-form fieldset {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+}
+
+.content-review-form legend,
+.content-review-form > label > span {
+  color: var(--paper);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.content-review-form fieldset > p {
+  margin-bottom: 12px;
+  font-size: 0.72rem;
+}
+
+.score-options {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+}
+
+.score-options label {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.score-options input {
+  accent-color: var(--gold);
+}
+
+.content-review-form > label {
+  display: grid;
+  gap: 7px;
+}
+
+.content-review-form select,
+.content-review-form input[type="text"],
+.content-review-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+}
+
+.content-review-form textarea {
+  resize: vertical;
+}
+
+.content-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.content-review-actions button {
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  background: rgba(197, 161, 90, 0.1);
+  cursor: pointer;
+}
+
+.content-review-actions button:first-child {
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 720;
+}
+
+.content-review-notice {
+  min-height: 1.4em;
+  color: var(--gold) !important;
+  font-size: 0.7rem !important;
+}
+
 .experience-note {
   margin-top: 20px !important;
 }
@@ -1835,6 +1994,10 @@ select:focus-visible {
 
   .formation-reference li {
     grid-template-columns: 28px 1fr;
+  }
+
+  .banner-codex {
+    grid-template-columns: 1fr;
   }
 
   .formation-example-cards {
