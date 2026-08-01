@@ -65,7 +65,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.8.0-m16h";
+const APP_VERSION = "2.9.0-m16i";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -268,30 +268,45 @@ const FORMATION_EXAMPLES = [
     name: CONTENT.formations.wedge.name,
     rule: CONTENT.formations.wedge.description,
     cards: ["燧锋 3", "燧锋 4", "燧锋 5"],
+    englishName: "Wedge / Straight Flush",
+    englishRule: "Same color with consecutive values.",
+    englishCards: ["Red 3", "Red 4", "Red 5"],
   },
   {
     rank: 2,
     name: CONTENT.formations.phalanx.name,
     rule: CONTENT.formations.phalanx.description,
     cards: ["燧锋 8", "沧澜 8", "青陌 8"],
+    englishName: "Phalanx / Kind",
+    englishRule: "All troop cards have the same value.",
+    englishCards: ["Red 8", "Blue 8", "Green 8"],
   },
   {
     rank: 3,
     name: CONTENT.formations.battalion.name,
     rule: CONTENT.formations.battalion.description,
     cards: ["沧澜 2", "沧澜 7", "沧澜 9"],
+    englishName: "Battalion / Flush",
+    englishRule: "All troop cards have the same color.",
+    englishCards: ["Blue 2", "Blue 7", "Blue 9"],
   },
   {
     rank: 4,
     name: CONTENT.formations.skirmish.name,
     rule: CONTENT.formations.skirmish.description,
     cards: ["燧锋 4", "沧澜 5", "青陌 6"],
+    englishName: "Skirmish / Straight",
+    englishRule: "Consecutive values in any colors.",
+    englishCards: ["Red 4", "Blue 5", "Green 6"],
   },
   {
     rank: 5,
     name: CONTENT.formations.host.name,
     rule: CONTENT.formations.host.description,
     cards: ["燧锋 2", "沧澜 5", "青陌 9"],
+    englishName: "Host / Sum",
+    englishRule: "Any other formation; compare total value.",
+    englishCards: ["Red 2", "Blue 5", "Green 9"],
   },
 ] as const;
 
@@ -302,7 +317,9 @@ function RulesDrawer({
   open: boolean;
   onClose: () => void;
 }) {
+  const [language, setLanguage] = useState<"zh" | "en">("zh");
   if (!open) return null;
+  const english = language === "en";
   return (
     <div className="rules-backdrop" data-testid="rules-drawer">
       <aside
@@ -313,41 +330,69 @@ function RulesDrawer({
       >
         <header>
           <div>
-            <p className="eyebrow">M11 · RULES REFERENCE</p>
-            <h2>规则速查</h2>
+            <p className="eyebrow">M16-I · BILINGUAL FIELD MANUAL</p>
+            <h2>{english ? "Rules Reference" : "规则速查"}</h2>
           </div>
-          <button aria-label="关闭规则速查" onClick={onClose} type="button">
-            关闭
-          </button>
+          <div className="rules-header-actions">
+            <div className="rules-language-toggle" aria-label="规则语言">
+              <button
+                aria-pressed={!english}
+                onClick={() => setLanguage("zh")}
+                type="button"
+              >
+                中文
+              </button>
+              <button
+                aria-pressed={english}
+                onClick={() => setLanguage("en")}
+                type="button"
+              >
+                English
+              </button>
+            </div>
+            <button aria-label="关闭规则速查" onClick={onClose} type="button">
+              {english ? "Close" : "关闭"}
+            </button>
+          </div>
         </header>
 
         <section>
-          <h3>目标与回合</h3>
+          <h3>{english ? "Objective & Turn" : "目标与回合"}</h3>
           <p>
-            率先夺得连续三座烽垒，或任意五座烽垒，即刻获胜。每回合依次列下一张牌、争取可夺烽垒，再从一个牌堆补一张牌。
+            {english
+              ? "Win immediately by claiming three adjacent flags or any five flags. On each turn, play one card, claim any eligible flags, then draw one card from either deck."
+              : "率先夺得连续三座烽垒，或任意五座烽垒，即刻获胜。每回合依次列下一张牌、争取可夺烽垒，再从一个牌堆补一张牌。"}
           </p>
         </section>
 
         <section>
-          <h3>阵型强度</h3>
+          <h3>{english ? "Formation Ranking" : "阵型强度"}</h3>
           <p className="rules-note">
-            由上至下依次变弱；同类阵型先比较点数和，再比较完成先后。
+            {english
+              ? "Ranked strongest to weakest. Ties compare total value, then which formation was completed first."
+              : "由上至下依次变弱；同类阵型先比较点数和，再比较完成先后。"}
           </p>
           <ol className="formation-reference">
             {FORMATION_EXAMPLES.map((formation) => (
               <li key={formation.name}>
                 <span>{formation.rank}</span>
                 <div>
-                  <strong>{formation.name}</strong>
-                  <small>{formation.rule}</small>
+                  <strong>
+                    {english ? formation.englishName : formation.name}
+                  </strong>
+                  <small>
+                    {english ? formation.englishRule : formation.rule}
+                  </small>
                 </div>
                 <div
                   className="formation-example-cards"
-                  aria-label={`${formation.name}示例`}
+                  aria-label={`${english ? formation.englishName : formation.name}${english ? " example" : "示例"}`}
                 >
-                  {formation.cards.map((card) => (
-                    <b key={card}>{card}</b>
-                  ))}
+                  {(english ? formation.englishCards : formation.cards).map(
+                    (card) => (
+                      <b key={card}>{card}</b>
+                    ),
+                  )}
                 </div>
               </li>
             ))}
@@ -356,19 +401,52 @@ function RulesDrawer({
 
         <section className="rules-grid">
           <div>
-            <h3>{CONTENT.terms.claim}规则</h3>
+            <h3>
+              {english ? "Claiming a Flag" : `${CONTENT.terms.claim}规则`}
+            </h3>
             <p>
-              己方兵列完成且强于对手时可以夺垒；若对手未完成，必须用所有公开可用牌证明其不可能反超。
+              {english
+                ? "Claim when your completed formation wins. If the opponent is incomplete, public information must prove that no available card can let them tie or beat it."
+                : "己方兵列完成且强于对手时可以夺垒；若对手未完成，必须用所有公开可用牌证明其不可能反超。"}
             </p>
           </div>
           <div>
-            <h3>{CONTENT.terms.tactic}术语</h3>
+            <h3>
+              {english ? "Tactic Families" : `${CONTENT.terms.tactic}术语`}
+            </h3>
             <p>
-              <b>{CONTENT.tacticCategories.morale}</b>加入阵型；
-              <b>{CONTENT.tacticCategories.environment}</b>改变整座烽垒；
-              <b>{CONTENT.tacticCategories.guile}</b>执行一次即时效果。
+              {english ? (
+                "Morale cards join formations; Environment cards affect a whole flag; Guile cards resolve an immediate effect."
+              ) : (
+                <>
+                  <b>{CONTENT.tacticCategories.morale}</b>加入阵型；
+                  <b>{CONTENT.tacticCategories.environment}</b>改变整座烽垒；
+                  <b>{CONTENT.tacticCategories.guile}</b>执行一次即时效果。
+                </>
+              )}
             </p>
           </div>
+        </section>
+
+        <section>
+          <h3>{english ? "Special Rules" : "特殊规则"}</h3>
+          <ul className="rules-bullets">
+            <li>
+              {english
+                ? "You may play a tactic only when doing so leaves you at most one tactic ahead of your opponent."
+                : "打出谋策后，己方累计谋策数最多只能比对手多一张。"}
+            </li>
+            <li>
+              {english
+                ? "Each player may use only one Leader card per game."
+                : "每名阵使每局最多使用一张统帅类号令。"}
+            </li>
+            <li>
+              {english
+                ? "Fog compares total value only. Mud increases both formations at that flag to four cards."
+                : "烟障只比较点数总和；陷辙令该烽垒双方兵列容量增加到四张。"}
+            </li>
+          </ul>
         </section>
       </aside>
     </div>
@@ -791,7 +869,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-H · MAIN COMMAND</p>
+          <p className="eyebrow">M16-I · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>

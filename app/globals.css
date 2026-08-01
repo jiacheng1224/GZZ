@@ -1792,6 +1792,34 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+.rules-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rules-language-toggle {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.rules-language-toggle button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.rules-language-toggle button[aria-pressed="true"] {
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 760;
+}
+
 .rules-drawer > section {
   padding: 24px 0;
   border-bottom: 1px solid var(--line);
@@ -1813,6 +1841,20 @@ textarea:focus-visible {
 
 .rules-drawer p b {
   color: var(--paper);
+}
+
+.rules-bullets {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.rules-bullets li {
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.7;
 }
 
 .experience-drawer {

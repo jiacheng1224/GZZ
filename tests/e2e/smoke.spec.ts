@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.8.0-m16h",
+    appVersion: "2.9.0-m16i",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -146,6 +146,11 @@ test("opens the rules reference with all five formation examples", async ({
   await expect(drawer).toContainText("任意五座烽垒");
   await expect(drawer).toContainText("贯锋");
   await expect(drawer).toContainText("集阵");
+  await drawer.getByRole("button", { name: "English" }).click();
+  await expect(drawer).toContainText("Rules Reference");
+  await expect(drawer).toContainText("three adjacent flags");
+  await expect(drawer).toContainText("Wedge / Straight Flush");
+  await expect(drawer).toContainText("Fog compares total value only");
   await page.getByRole("button", { name: "关闭规则速查" }).click();
   await expect(drawer).toHaveCount(0);
 });
