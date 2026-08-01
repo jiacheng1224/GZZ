@@ -736,6 +736,35 @@ textarea:focus-visible {
   line-height: 1.5;
 }
 
+.selected-order .order-description {
+  color: var(--paper);
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+.selected-order .order-targets {
+  color: var(--gold);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.56rem;
+}
+
+.selected-order .order-clear {
+  min-height: 32px;
+  margin-top: 5px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--muted);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.selected-order .order-clear:hover:not(:disabled) {
+  border-color: var(--gold);
+  color: var(--paper);
+}
+
 .command-panel h2 {
   margin: 0;
   font-family: "Songti SC", "STSong", serif;
@@ -1699,12 +1728,18 @@ textarea:focus-visible {
 }
 
 .online-order {
-  grid-template-columns: minmax(130px, 0.42fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(110px, 0.32fr) minmax(220px, 1fr) auto;
   align-items: center;
 }
 
 .online-order > span {
-  grid-row: 1 / 3;
+  grid-row: 1 / 5;
+}
+
+.online-order .order-clear {
+  grid-row: 1 / 5;
+  grid-column: 3;
+  margin: 0;
 }
 
 .rules-backdrop {
@@ -2832,6 +2867,11 @@ textarea:focus-visible {
 
   .online-order > span {
     grid-row: auto;
+  }
+
+  .online-order .order-clear {
+    grid-row: auto;
+    grid-column: auto;
   }
 
   .handoff-actions,

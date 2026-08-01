@@ -53,6 +53,7 @@ import {
   tacticContentName,
   troopColorName,
   troopContentName,
+  type TacticId,
 } from "@/packages/game-content/src";
 import {
   createContentReviewExport,
@@ -64,7 +65,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.7.0-m16g";
+const APP_VERSION = "2.8.0-m16h";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -145,6 +146,7 @@ function cardView(cardId: CardId) {
       className: `tactic ${tactic.category}`,
       accent: CONTENT.tacticCategoryThemes[tactic.category].accent,
       sigil: CONTENT.tacticCategoryThemes[tactic.category].sigil,
+      description: CONTENT.tactics[cardId as TacticId].description,
     };
   }
   const troop = parseTroopCard(cardId);
@@ -154,6 +156,7 @@ function cardView(cardId: CardId) {
     className: `troop ${troop.color}`,
     accent: CONTENT.troopColors[troop.color].accent,
     sigil: CONTENT.troopColors[troop.color].sigil,
+    description: CONTENT.troopColors[troop.color].description,
   };
 }
 
@@ -202,8 +205,10 @@ function CardFace({
   const card = cardView(cardId);
   return (
     <span
+      aria-label={`${card.title} ${card.subtitle}：${card.description}`}
       className={`card-face ${card.className} ${compact ? "compact" : ""}`}
       style={{ "--card-accent": card.accent } as CSSProperties}
+      title={card.description}
     >
       <span className="card-sigil" aria-hidden="true">
         {card.sigil}
@@ -786,7 +791,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-G · MAIN COMMAND</p>
+          <p className="eyebrow">M16-H · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -1583,13 +1588,30 @@ function OnlineRoom({
               <strong>
                 {selectedCard ? cardView(selectedCard).title : "等待选择手牌"}
               </strong>
-              <small>
-                {selectedCard
-                  ? `合法烽垒 ${selectedCommands.length} 处 · 命令由服务端权威确认`
-                  : view.activePlayer === session.playerId
+              {selectedCard ? (
+                <>
+                  <small className="order-description">
+                    {cardView(selectedCard).description}
+                  </small>
+                  <small className="order-targets">
+                    合法烽垒 {selectedCommands.length} 处 · 命令由服务端权威确认
+                  </small>
+                  <button
+                    className="order-clear"
+                    disabled={busy}
+                    onClick={() => setSelectedCard(undefined)}
+                    type="button"
+                  >
+                    取消选牌
+                  </button>
+                </>
+              ) : (
+                <small>
+                  {view.activePlayer === session.playerId
                     ? "选择手牌后，所有合法烽垒将同步高亮。"
                     : `等待${playerName(opponent)}提交行动。`}
-              </small>
+                </small>
+              )}
             </div>
             <div className="online-hand">
               <strong>你的手牌</strong>
@@ -2895,11 +2917,27 @@ export function GameTable() {
               <strong>
                 {selectedCard ? cardView(selectedCard).title : "等待选择手牌"}
               </strong>
-              <small>
-                {selectedCard
-                  ? `合法烽垒 ${view.flags.filter((flag) => flagCommand(flag.id)).length} 处`
-                  : "选中一张手牌后，战场将标出所有合法位置。"}
-              </small>
+              {selectedCard ? (
+                <>
+                  <small className="order-description">
+                    {cardView(selectedCard).description}
+                  </small>
+                  <small className="order-targets">
+                    合法烽垒{" "}
+                    {view.flags.filter((flag) => flagCommand(flag.id)).length}{" "}
+                    处
+                  </small>
+                  <button
+                    className="order-clear"
+                    onClick={() => setSelectedCard(undefined)}
+                    type="button"
+                  >
+                    取消选牌
+                  </button>
+                </>
+              ) : (
+                <small>选中一张手牌后，战场将标出所有合法位置。</small>
+              )}
             </div>
             <div>
               <p className="section-label">当前阶段</p>

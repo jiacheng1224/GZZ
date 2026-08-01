@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.7.0-m16g",
+    appVersion: "2.8.0-m16h",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -291,6 +291,12 @@ test("starts standard and basic matches from explicit setup", async ({
   await acceptHandoff(page);
   await expect(page.getByText("基础对局", { exact: true })).toBeVisible();
   await expect(page.getByText("谋策牌堆 0")).toBeVisible();
+  await page.getByTestId("hand-card").first().click();
+  await expect(page.locator(".selected-order.active")).toContainText(
+    "合法烽垒",
+  );
+  await page.getByRole("button", { name: "取消选牌" }).click();
+  await expect(page.locator(".selected-order")).not.toHaveClass(/active/);
 });
 
 test("runs the朱羽 standard AI turn without exposing either hand", async ({
