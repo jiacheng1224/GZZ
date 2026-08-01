@@ -65,7 +65,7 @@ import {
 const CONTENT = ACTIVE_CONTENT_PACK;
 const PHASE_NAMES: Record<GamePhase, string> = CONTENT.phases;
 
-const APP_VERSION = "2.9.0-m16i";
+const APP_VERSION = "2.10.0-m16j";
 const SAVE_KEY = "guzhanzhen.local-game.v1";
 const PREFERENCES_KEY = "guzhanzhen.experience.v1";
 const ONLINE_SESSION_KEY = "guzhanzhen.online-room.v1";
@@ -96,6 +96,17 @@ const playerName = playerContentName;
 
 const otherPlayer = (player: PlayerId): PlayerId =>
   player === "player-one" ? "player-two" : "player-one";
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(
+      target.closest(
+        'input, textarea, select, [contenteditable="true"], [role="textbox"]',
+      ),
+    )
+  );
+}
 
 type SoundCue = "deploy" | "tactic" | "claim" | "turn" | "victory" | "confirm";
 
@@ -869,7 +880,7 @@ function SetupScreen({
 
       <section className="main-menu-layout">
         <div className="main-menu-hero">
-          <p className="eyebrow">M16-I · MAIN COMMAND</p>
+          <p className="eyebrow">M16-J · MAIN COMMAND</p>
           <h1>{CONTENT.brand.name}</h1>
           <p className="main-menu-subtitle">{CONTENT.brand.subtitle}</p>
           <p className="main-menu-description">{CONTENT.brand.description}</p>
@@ -1289,67 +1300,71 @@ function OnlineRoom({
     }
   };
 
-  const sendCommand = async (command: GameCommand) => {
-    if (!session || !protocol) return;
-    const envelope = createCommandEnvelope({
-      roomId: session.roomId,
-      commandId: crypto.randomUUID(),
-      sequence: protocol.nextSequence,
-      playerId: session.playerId,
-      clientVersion: APP_VERSION,
-      expectedStateVersion: protocol.stateVersion,
-      command,
-    });
-    setBusy(true);
-    try {
-      let payload: OnlinePayload | undefined;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          payload = await roomAction({ action: "command", envelope });
-          break;
-        } catch (error) {
-          if (attempt === 1) throw error;
-          await new Promise((resolve) => window.setTimeout(resolve, 350));
+  const sendCommand = useCallback(
+    async (command: GameCommand) => {
+      if (!session || !protocol) return;
+      const envelope = createCommandEnvelope({
+        roomId: session.roomId,
+        commandId: crypto.randomUUID(),
+        sequence: protocol.nextSequence,
+        playerId: session.playerId,
+        clientVersion: APP_VERSION,
+        expectedStateVersion: protocol.stateVersion,
+        command,
+      });
+      setBusy(true);
+      try {
+        let payload: OnlinePayload | undefined;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            payload = await roomAction({ action: "command", envelope });
+            break;
+          } catch (error) {
+            if (attempt === 1) throw error;
+            await new Promise((resolve) => window.setTimeout(resolve, 350));
+          }
         }
+        const result = payload?.result;
+        if (!result) throw new Error("服务端未返回命令结果。");
+        if (result.status === "rejected") {
+          if (result.snapshot)
+            setProtocol((current) =>
+              current
+                ? {
+                    ...current,
+                    stateVersion: result.stateVersion,
+                    nextSequence:
+                      result.expectedSequence ?? current.nextSequence,
+                    snapshot: result.snapshot!,
+                  }
+                : current,
+            );
+          throw new Error(`${result.code}：${result.message}`);
+        }
+        setProtocol((current) =>
+          current
+            ? {
+                ...current,
+                stateVersion: result.stateVersion,
+                eventCursor: result.eventCursor,
+                nextSequence: result.sequence + 1,
+                snapshot: result.snapshot,
+              }
+            : current,
+        );
+        setSelectedCard(undefined);
+        setNotice(
+          result.status === "duplicate" ? "命令已确认。" : "命令已执行。",
+        );
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "命令提交失败。");
+        void syncRoom();
+      } finally {
+        setBusy(false);
       }
-      const result = payload?.result;
-      if (!result) throw new Error("服务端未返回命令结果。");
-      if (result.status === "rejected") {
-        if (result.snapshot)
-          setProtocol((current) =>
-            current
-              ? {
-                  ...current,
-                  stateVersion: result.stateVersion,
-                  nextSequence: result.expectedSequence ?? current.nextSequence,
-                  snapshot: result.snapshot!,
-                }
-              : current,
-          );
-        throw new Error(`${result.code}：${result.message}`);
-      }
-      setProtocol((current) =>
-        current
-          ? {
-              ...current,
-              stateVersion: result.stateVersion,
-              eventCursor: result.eventCursor,
-              nextSequence: result.sequence + 1,
-              snapshot: result.snapshot,
-            }
-          : current,
-      );
-      setSelectedCard(undefined);
-      setNotice(
-        result.status === "duplicate" ? "命令已确认。" : "命令已执行。",
-      );
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "命令提交失败。");
-      void syncRoom();
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+    [protocol, roomAction, session, syncRoom],
+  );
 
   const leaveRoom = async () => {
     if (session)
@@ -1360,6 +1375,53 @@ function OnlineRoom({
     setProtocol(undefined);
     onBack();
   };
+
+  useEffect(() => {
+    const onlineView = protocol?.snapshot;
+    if (
+      !session ||
+      !onlineView ||
+      busy ||
+      onlineView.phase === "finished" ||
+      onlineView.activePlayer !== session.playerId
+    )
+      return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        isTextEntryTarget(event.target)
+      )
+        return;
+      if (event.key === "Escape" && selectedCard) {
+        event.preventDefault();
+        setSelectedCard(undefined);
+        setNotice("已取消选牌。");
+        return;
+      }
+      if (!/^[1-9]$/u.test(event.key)) return;
+      const flagId = Number(event.key) - 1;
+      const command =
+        (selectedCard
+          ? onlineView.legalCommands.find(
+              (item) =>
+                (item.type === "play-troop" || item.type === "play-tactic") &&
+                item.cardId === selectedCard &&
+                item.flagId === flagId,
+            )
+          : undefined) ??
+        onlineView.legalCommands.find(
+          (item) => item.type === "claim-flag" && item.flagId === flagId,
+        );
+      if (!command) return;
+      event.preventDefault();
+      void sendCommand(command);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [busy, protocol, selectedCard, sendCommand, session]);
 
   if (restoring)
     return (
@@ -1612,6 +1674,7 @@ function OnlineRoom({
                     </div>
                     <button
                       disabled={busy || !flagCommand}
+                      aria-keyshortcuts={String(flag.id + 1)}
                       onClick={() =>
                         flagCommand && void sendCommand(flagCommand)
                       }
@@ -1690,6 +1753,14 @@ function OnlineRoom({
                     : `等待${playerName(opponent)}提交行动。`}
                 </small>
               )}
+            </div>
+            <div className="keyboard-hints" aria-label="在线棋盘快捷键">
+              <span>
+                <kbd>1–9</kbd> 选择对应烽垒
+              </span>
+              <span>
+                <kbd>Esc</kbd> 取消选牌
+              </span>
             </div>
             <div className="online-hand">
               <strong>你的手牌</strong>
@@ -2364,26 +2435,29 @@ export function GameTable() {
     setNotice("新对局已创建。");
   };
 
-  const execute = (command: GameCommand) => {
-    try {
-      const next = applyCommand(state, command);
-      setState(next);
-      setReplayCommands((current) => [...current, command]);
-      if (next.activePlayer !== state.activePlayer) {
-        setRevealedPlayer(undefined);
+  const execute = useCallback(
+    (command: GameCommand) => {
+      try {
+        const next = applyCommand(state, command);
+        setState(next);
+        setReplayCommands((current) => [...current, command]);
+        if (next.activePlayer !== state.activePlayer) {
+          setRevealedPlayer(undefined);
+        }
+        setSelectedCard(undefined);
+        setReturnCards([]);
+        setNotice("命令已执行，请继续当前阶段。");
+        if (soundEnabled) playFeedbackSound(commandSound(command, next));
+      } catch (error) {
+        setNotice(
+          error instanceof RuleError
+            ? `${error.code}：${RULE_ERROR_MESSAGES[error.code] ?? error.message}`
+            : "命令执行失败，请重试。",
+        );
       }
-      setSelectedCard(undefined);
-      setReturnCards([]);
-      setNotice("命令已执行，请继续当前阶段。");
-      if (soundEnabled) playFeedbackSound(commandSound(command, next));
-    } catch (error) {
-      setNotice(
-        error instanceof RuleError
-          ? `${error.code}：${RULE_ERROR_MESSAGES[error.code] ?? error.message}`
-          : "命令执行失败，请重试。",
-      );
-    }
-  };
+    },
+    [soundEnabled, state],
+  );
 
   useEffect(() => {
     if (
@@ -2454,6 +2528,77 @@ export function GameTable() {
       (command) => command.type === "claim-flag" && command.flagId === flagId,
     );
   };
+
+  useEffect(() => {
+    if (
+      !ready ||
+      !hasActiveGame ||
+      showSetup ||
+      onlineOpen ||
+      state.phase === "finished" ||
+      (mode === "solo" && state.activePlayer === "player-two") ||
+      revealedPlayer !== state.activePlayer ||
+      rulesOpen ||
+      replayOpen ||
+      settingsOpen ||
+      contentOpen
+    )
+      return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        isTextEntryTarget(event.target)
+      )
+        return;
+      if (event.key === "Escape" && selectedCard) {
+        event.preventDefault();
+        setSelectedCard(undefined);
+        setNotice("已取消选牌。");
+        return;
+      }
+      if (!/^[1-9]$/u.test(event.key)) return;
+      const flagId = Number(event.key) - 1;
+      const command =
+        view.legalCommands.find(
+          (item) =>
+            item.type === "choose-tactic-destination" && item.flagId === flagId,
+        ) ??
+        (selectedCard
+          ? view.legalCommands.find(
+              (item) =>
+                (item.type === "play-troop" || item.type === "play-tactic") &&
+                item.cardId === selectedCard &&
+                item.flagId === flagId,
+            )
+          : undefined) ??
+        view.legalCommands.find(
+          (item) => item.type === "claim-flag" && item.flagId === flagId,
+        );
+      if (!command) return;
+      event.preventDefault();
+      execute(command);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    contentOpen,
+    execute,
+    hasActiveGame,
+    mode,
+    onlineOpen,
+    ready,
+    replayOpen,
+    revealedPlayer,
+    rulesOpen,
+    selectedCard,
+    settingsOpen,
+    showSetup,
+    state,
+    view.legalCommands,
+  ]);
 
   const chooseHandCard = (cardId: CardId) => {
     if (view.pendingEffect?.step === "choose-return") {
@@ -2926,6 +3071,7 @@ export function GameTable() {
                       </div>
 
                       <button
+                        aria-keyshortcuts={String(flag.id + 1)}
                         className="flag-action"
                         data-testid={`flag-target-${flag.id}`}
                         disabled={!command}
@@ -3016,6 +3162,14 @@ export function GameTable() {
               ) : (
                 <small>选中一张手牌后，战场将标出所有合法位置。</small>
               )}
+            </div>
+            <div className="keyboard-hints" aria-label="棋盘快捷键">
+              <span>
+                <kbd>1–9</kbd> 选择对应烽垒
+              </span>
+              <span>
+                <kbd>Esc</kbd> 取消选牌
+              </span>
             </div>
             <div>
               <p className="section-label">当前阶段</p>

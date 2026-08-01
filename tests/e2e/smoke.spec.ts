@@ -71,7 +71,7 @@ function saveEnvelope(state: GameState) {
   assertGameState(state);
   return {
     schemaVersion: 1,
-    appVersion: "2.9.0-m16i",
+    appVersion: "2.10.0-m16j",
     savedAt: "2026-08-01T00:00:00.000Z",
     state,
   };
@@ -300,8 +300,16 @@ test("starts standard and basic matches from explicit setup", async ({
   await expect(page.locator(".selected-order.active")).toContainText(
     "合法烽垒",
   );
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".selected-order")).not.toHaveClass(/active/);
+  await page.getByTestId("hand-card").first().click();
   await page.getByRole("button", { name: "取消选牌" }).click();
   await expect(page.locator(".selected-order")).not.toHaveClass(/active/);
+  await page.getByTestId("hand-card").first().click();
+  await page.keyboard.press("1");
+  await expect(
+    page.getByTestId("flag-0").locator(".player-formation .card-face"),
+  ).toHaveCount(1);
 });
 
 test("runs the朱羽 standard AI turn without exposing either hand", async ({

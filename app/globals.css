@@ -765,6 +765,33 @@ textarea:focus-visible {
   color: var(--paper);
 }
 
+.keyboard-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyboard-hints span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.56rem;
+}
+
+.keyboard-hints kbd {
+  min-width: 28px;
+  padding: 3px 5px;
+  border: 1px solid rgba(209, 170, 93, 0.34);
+  border-bottom-width: 2px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--gold);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.52rem;
+  text-align: center;
+}
+
 .command-panel h2 {
   margin: 0;
   font-family: "Songti SC", "STSong", serif;
